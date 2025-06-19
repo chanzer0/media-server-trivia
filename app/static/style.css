@@ -2,6 +2,16 @@ body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
+body.dark-mode {
+  background-color: #121212;
+  color: #f8f9fa;
+}
+
+.dark-mode .card {
+  background-color: #1e1e1e;
+  color: #f8f9fa;
+}
+
 .sidebar {
   background-color: #f8f9fa;
   min-height: 100vh;
@@ -25,4 +35,25 @@ body {
 .card-hover:hover {
   transform: translateY(-3px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cast-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background-color: #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+body.dark-mode .cast-circle {
+  background-color: #333;
+  color: #fff;
+}
+
+.game-container {
+  max-width: 800px;
+  margin: 0 auto;
 }

@@ -9,9 +9,25 @@ def init_routes(app: Flask, plex_service: PlexService):
 
     @bp.route("/")
     def index():
-        movies = plex_service.get_movies()
-        shows = plex_service.get_shows()
-        return render_template("index.html", movies=movies, shows=shows)
+        """Homepage with game selection."""
+        return render_template("index.html")
+
+    # ----- Game Pages -----
+
+    @bp.route("/game/cast")
+    def game_cast():
+        """Full page Cast Reveal game."""
+        return render_template("cast_game.html")
+
+    @bp.route("/game/year")
+    def game_year():
+        """Full page Guess the Year game."""
+        return render_template("year_game.html")
+
+    @bp.route("/game/poster")
+    def game_poster():
+        """Full page Poster Reveal game."""
+        return render_template("poster_game.html")
 
     @bp.route("/api/trivia")
     def api_trivia():
@@ -40,5 +56,12 @@ def init_routes(app: Flask, plex_service: PlexService):
         if not q:
             return jsonify({"error": "No media found"}), 404
         return jsonify(q)
+
+    @bp.route("/api/titles")
+    def api_titles():
+        """Return a combined list of movie and show titles."""
+        movie_titles = [m.title for m in plex_service.get_movies()]
+        show_titles = [s.title for s in plex_service.get_shows()]
+        return jsonify({"titles": movie_titles + show_titles})
 
     app.register_blueprint(bp)

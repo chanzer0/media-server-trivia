@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="game-container text-center">
+  <div class="progress mb-4" style="height: 8px;">
+    <div id="roundProgress" class="progress-bar" role="progressbar" style="width:0%"></div>
+  </div>
+  <div id="castIcons" class="d-flex justify-content-center gap-3 mb-4">
+    {% for i in range(7) %}
+    <div class="cast-circle" id="cast{{ i }}">?</div>
+    {% endfor %}
+  </div>
+  <div class="d-flex justify-content-center mb-3">
+    <input list="titles" id="guessInput" class="form-control w-auto me-2" placeholder="Your guess">
+    <datalist id="titles"></datalist>
+    <button id="guessBtn" class="btn btn-primary">Guess</button>
+  </div>
+  <div id="gameMessage" class="mt-3"></div>
+</div>
+<script src="{{ url_for('static', filename='cast_game.js') }}"></script>
+{% endblock %}

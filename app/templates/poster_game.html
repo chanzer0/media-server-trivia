@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="game-container text-center">
+  <img id="posterImg" class="mb-3" style="max-width:100%;filter:blur(15px);">
+  <p id="posterSummary" class="mb-3"></p>
+  <button id="posterReveal" class="btn btn-primary">Reveal More</button>
+  <div id="posterAnswer" class="mt-3"></div>
+</div>
+<script src="{{ url_for('static', filename='poster_game.js') }}"></script>
+{% endblock %}
