@@ -60,4 +60,3 @@ class TriviaEngine:
             "poster": poster,
             "summary": movie.summary,
         }
-
