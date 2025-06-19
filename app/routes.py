@@ -13,6 +13,18 @@ def init_routes(app: Flask, plex_service: PlexService):
         shows = plex_service.get_shows()
         return render_template("index.html", movies=movies, shows=shows)
 
+    @bp.route("/game/cast")
+    def game_cast():
+        return render_template("games/cast.html")
+
+    @bp.route("/game/year")
+    def game_year():
+        return render_template("games/year.html")
+
+    @bp.route("/game/poster")
+    def game_poster():
+        return render_template("games/poster.html")
+
     @bp.route("/api/trivia")
     def api_trivia():
         q = trivia.random_question()

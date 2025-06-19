@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid game-page text-center">
+  <h2 class="mb-4">Guess the Year</h2>
+  <div id="yearQuestion" class="display-6 mb-3"></div>
+  <div class="d-flex justify-content-center mb-3">
+    <input id="yearInput" type="number" class="form-control me-2" style="max-width:200px" placeholder="Year">
+    <button id="yearGuessBtn" class="btn btn-primary">Guess</button>
+  </div>
+  <div id="yearResult"></div>
+</div>
+<script>
+let yearData = null;
+async function loadYear() {
+  const res = await fetch('/api/trivia/year');
+  yearData = await res.json();
+  if (!yearData.title) {
+    document.getElementById('yearQuestion').innerText = yearData.error || 'No data';
+    return;
+  }
+  document.getElementById('yearQuestion').innerText = `What year did ${yearData.title} release?`;
+}
+
+document.getElementById('yearGuessBtn').addEventListener('click', () => {
+  if (!yearData) return;
+  const guess = parseInt(document.getElementById('yearInput').value, 10);
+  const result = document.getElementById('yearResult');
+  if (guess === yearData.year) {
+    result.innerHTML = `<div class='alert alert-success'>Correct!</div>`;
+  } else {
+    result.innerHTML = `<div class='alert alert-info'>Nope, it was ${yearData.year}.</div>`;
+  }
+});
+
+loadYear();
+</script>
+{% endblock %}

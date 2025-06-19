@@ -26,3 +26,34 @@ body {
   transform: translateY(-3px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
+
+.cast-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background-color: #dee2e6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+
+body.dark-mode {
+  background-color: #121212;
+  color: #f8f9fa;
+}
+body.dark-mode .navbar {
+  background-color: #1f1f1f;
+}
+body.dark-mode .sidebar {
+  background-color: #1f1f1f;
+  border-color: #333;
+}
+body.dark-mode .card {
+  background-color: #1f1f1f;
+  color: #f8f9fa;
+}
+body.dark-mode .cast-circle {
+  background-color: #495057;
+}

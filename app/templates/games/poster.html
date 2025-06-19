@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid game-page text-center">
+  <h2 class="mb-4">Poster Reveal</h2>
+  <div id="posterContainer" class="mb-3"></div>
+  <button id="posterRevealBtn" class="btn btn-primary mb-2">Reveal More</button>
+  <div id="posterResult"></div>
+</div>
+<script>
+let posterData = null;
+let blur = 15;
+let count = 3;
+let words = [];
+
+async function loadPoster() {
+  const res = await fetch('/api/trivia/poster');
+  posterData = await res.json();
+  if (!posterData.poster) {
+    document.getElementById('posterResult').innerText = posterData.error || 'No data';
+    return;
+  }
+  words = posterData.summary ? posterData.summary.split(' ') : [];
+  render();
+}
+
+function render() {
+  const div = document.getElementById('posterContainer');
+  div.innerHTML = `<img id='posterImg' src='${posterData.poster}' style='max-width:100%;filter:blur(${blur}px);'>` +
+    `<p id='posterSummary' class='mt-3'>${words.slice(0,count).join(' ')}...</p>`;
+}
+
+document.getElementById('posterRevealBtn').addEventListener('click', () => {
+  if (!posterData) return;
+  if (blur > 0) {
+    blur -= 3;
+    if (blur < 0) blur = 0;
+  }
+  if (count < words.length) {
+    count += 3;
+  }
+  render();
+  document.getElementById('posterImg').style.filter = `blur(${blur}px)`;
+  if (blur === 0 && count >= words.length) {
+    document.getElementById('posterRevealBtn').disabled = true;
+    document.getElementById('posterResult').innerHTML = `<div class='alert alert-info'>Answer: ${posterData.title}</div>`;
+  }
+});
+
+loadPoster();
+</script>
+{% endblock %}
