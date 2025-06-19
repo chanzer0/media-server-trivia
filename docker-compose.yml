@@ -3,8 +3,8 @@ services:
   trivia:
     build: .
     ports:
-      - "8080:5000"
+      - "${HOST_PORT:-8080}:${HOST_PORT:-8080}"
     environment:
-      - PLEX_BASE_URL=http://your.plex.ip:32400
-      - PLEX_TOKEN=your_token
-
+      - PLEX_BASE_URL=${PLEX_BASE_URL}
+      - PLEX_TOKEN=${PLEX_TOKEN}
+      - FLASK_RUN_PORT=${HOST_PORT:-8080}
