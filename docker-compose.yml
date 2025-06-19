@@ -4,8 +4,8 @@ services:
     image: chanzer0/media-server-trivia:latest
     build: .
     ports:
-      - "${HOST_PORT:-8080}:${HOST_PORT:-8080}"
+      - "${HOST_PORT:-5054}:${HOST_PORT:-5054}"
     environment:
       - PLEX_BASE_URL=${PLEX_BASE_URL}
       - PLEX_TOKEN=${PLEX_TOKEN}
-      - FLASK_RUN_PORT=${HOST_PORT:-8080}
+      - FLASK_RUN_PORT=${HOST_PORT:-5054}

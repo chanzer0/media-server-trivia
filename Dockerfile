@@ -5,7 +5,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 ENV FLASK_APP=app:create_app
 ENV FLASK_RUN_HOST=0.0.0.0
-ENV FLASK_RUN_PORT=8080
-EXPOSE 8080
+ENV FLASK_RUN_PORT=5054
+EXPOSE 5054
 CMD ["flask", "run"]
 
