@@ -1,4 +1,5 @@
 from plexapi.server import PlexServer
+from plexapi.video import Show, Movie
 
 
 class PlexService:
@@ -16,12 +17,13 @@ class PlexService:
                 print(f"Failed to connect to Plex: {e}")
                 self.server = None
 
-    def get_movies(self):
+    def get_movies(self) -> list[Movie]:
         if not self.server:
             return []
-        return [movie.title for movie in self.server.library.section("Movies").all()]
 
-    def get_shows(self):
+        return self.server.library.section("Movies").all()
+
+    def get_shows(self) -> list[Show]:
         if not self.server:
             return []
-        return [show.title for show in self.server.library.section("TV Shows").all()]
+        return self.server.library.section("TV Shows").all()

@@ -1,5 +1,6 @@
 venv/
 .env
+example_plex_data.json
 app\__pycache__/
 *.pyc
 *.pyo
