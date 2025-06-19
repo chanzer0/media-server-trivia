@@ -1,26 +1,58 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h2>Your Movies</h2>
-<ul class="list-group mb-4">
-  {% for movie in movies %}
-  <li class="list-group-item">{{ movie }}</li>
-  {% else %}
-  <li class="list-group-item">No movies found.</li>
-  {% endfor %}
-</ul>
-
-<h2>Your TV Shows</h2>
-<ul class="list-group mb-4">
-  {% for show in shows %}
-  <li class="list-group-item">{{ show }}</li>
-  {% else %}
-  <li class="list-group-item">No shows found.</li>
-  {% endfor %}
-</ul>
-
-<button id="triviaBtn" class="btn btn-primary">Get Random Trivia</button>
-<div id="trivia" class="mt-3"></div>
+<div class="container-fluid">
+  <div class="row g-4">
+    <div class="col-12">
+      <h1 class="display-6 fw-bold">Dashboard</h1>
+    </div>
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h5 class="card-title">Random Trivia</h5>
+          <p class="card-text" id="trivia">Click the button to load trivia.</p>
+          <button id="triviaBtn" class="btn btn-primary">Get Random Trivia</button>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h5 class="card-title">Movies</h5>
+          <ul class="list-group list-group-flush">
+            {% for movie in movies %}
+            <li class="list-group-item">{{ movie }}</li>
+            {% else %}
+            <li class="list-group-item">No movies found.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h5 class="card-title">TV Shows</h5>
+          <ul class="list-group list-group-flush">
+            {% for show in shows %}
+            <li class="list-group-item">{{ show }}</li>
+            {% else %}
+            <li class="list-group-item">No shows found.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h5 class="card-title">Leaderboard</h5>
+          <p class="card-text">Coming soon...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
   document.getElementById('triviaBtn').addEventListener('click', async () => {
@@ -28,11 +60,10 @@
     const data = await res.json();
     const div = document.getElementById('trivia');
     if (data.question) {
-      div.innerHTML = `<div class='alert alert-info'><strong>Q:</strong> ${data.question}<br><strong>A:</strong> ${data.answer}</div>`;
+      div.innerHTML = `<strong>Q:</strong> ${data.question}<br><strong>A:</strong> ${data.answer}`;
     } else {
-      div.innerHTML = `<div class='alert alert-warning'>${data.error}</div>`;
+      div.innerHTML = data.error;
     }
   });
 </script>
 {% endblock %}
-
