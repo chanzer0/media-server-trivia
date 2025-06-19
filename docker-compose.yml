@@ -1,7 +1,7 @@
 version: '3'
 services:
   trivia:
-    image: chanzer0/media-server-trivia:latest
+    image: chanzero/media-server-trivia:latest
     build: .
     ports:
       - "${HOST_PORT:-5054}:${HOST_PORT:-5054}"

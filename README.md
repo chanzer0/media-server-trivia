@@ -40,11 +40,11 @@ The web interface will be available on `http://localhost:${HOST_PORT}`. By defau
 ## Docker Image
 
 Every push to the `main` branch automatically builds a Docker image and publishes
-it to Docker Hub as `chanzer0/media-server-trivia:latest`. You can pull it
+it to Docker Hub as `chanzero/media-server-trivia:latest`. You can pull it
 directly:
 
 ```bash
-docker pull chanzer0/media-server-trivia:latest
+docker pull chanzero/media-server-trivia:latest
 ```
 
 The image expects the same environment variables as the compose file.
