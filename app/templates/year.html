@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="game-container text-center">
+  <h2 class="mb-4">Guess the Year</h2>
+  <div id="yearQuestion" class="h4 mb-3"></div>
+  <div class="input-group mb-3 justify-content-center">
+    <input id="yearInput" class="form-control w-auto" placeholder="Enter year" autocomplete="off">
+    <button id="yearSubmit" class="btn btn-primary" type="button">Submit</button>
+  </div>
+  <div id="yearResult" class="fw-bold"></div>
+</div>
+<script src="{{ url_for('static', filename='year.js') }}"></script>
+{% endblock %}

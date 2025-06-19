@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="game-container text-center">
+  <h2 class="mb-4">Poster Reveal</h2>
+  <div class="progress mb-3" style="height:5px;">
+    <div id="posterProgress" class="progress-bar" role="progressbar" style="width:0%"></div>
+  </div>
+  <img id="posterImage" class="mb-3" style="max-width:100%;filter:blur(15px);">
+  <p id="posterSummary" class="mb-3"></p>
+  <button id="posterReveal" class="btn btn-primary mb-3" type="button">Reveal More</button>
+  <div id="posterResult" class="fw-bold"></div>
+</div>
+<script src="{{ url_for('static', filename='poster.js') }}"></script>
+{% endblock %}

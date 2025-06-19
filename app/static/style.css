@@ -26,3 +26,55 @@ body {
   transform: translateY(-3px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
+
+/* Dark mode support */
+body.dark-mode {
+  background-color: #121212;
+  color: #f8f9fa;
+}
+
+body.dark-mode .navbar {
+  background-color: #343a40 !important;
+}
+
+body.dark-mode .sidebar {
+  background-color: #212529;
+  border-color: #343a40;
+}
+
+body.dark-mode .card {
+  background-color: #1e1e1e;
+  color: #f8f9fa;
+  border-color: #343a40;
+}
+
+/* Sidebar collapse */
+body.sidebar-collapsed .sidebar {
+  width: 60px !important;
+  overflow-x: hidden;
+}
+
+body.sidebar-collapsed .sidebar .nav-link,
+body.sidebar-collapsed .sidebar h6,
+body.sidebar-collapsed .sidebar img,
+body.sidebar-collapsed .sidebar h5 {
+  display: none;
+}
+
+/* Game layouts */
+.game-container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.cast-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background-color: #e9ecef;
+}
+
+body.dark-mode .cast-circle {
+  background-color: #495057;
+  color: #f8f9fa;
+}

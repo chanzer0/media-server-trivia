@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="game-container">
+  <h2 class="text-center mb-4">Cast Reveal</h2>
+  <div class="progress mb-3" style="height:5px;">
+    <div id="castProgress" class="progress-bar" role="progressbar" style="width:0%"></div>
+  </div>
+  <div id="castCircles" class="d-flex justify-content-center gap-3 mb-4"></div>
+  <div class="input-group mb-3">
+    <input id="castGuess" class="form-control" placeholder="Search and guess..." list="titlesList" autocomplete="off">
+    <button id="castGuessBtn" class="btn btn-primary" type="button">Guess</button>
+  </div>
+  <datalist id="titlesList"></datalist>
+  <div id="castResult" class="text-center fw-bold"></div>
+</div>
+<script src="{{ url_for('static', filename='cast.js') }}"></script>
+{% endblock %}
