@@ -16,22 +16,38 @@ A template for an Unraid-ready application that turns your Plex library into a t
 - A Plex API token and the base URL of your Plex server
 
 ## Configuration
-The application reads two environment variables:
+The application reads a few environment variables:
 
 ```
 PLEX_BASE_URL=<http://your.plex.ip:port>
 PLEX_TOKEN=<your_plex_token>
+HOST_PORT=<port_for_web_ui>
 ```
-
-These can be supplied in `docker-compose.yml` or directly in your environment.
+These can be supplied in `docker-compose.yml` or directly in your environment. `HOST_PORT` controls which port the web interface listens on.
 
 ## Running with Docker
 
+The included `docker-compose.yml` pulls the prebuilt image from Docker Hub and
+starts the container with your configured environment variables.
+
 ```
-docker compose up --build
+docker compose up
 ```
 
-The web interface will be available on `http://localhost:8080` by default.
+Ensure that `PLEX_BASE_URL`, `PLEX_TOKEN` and `HOST_PORT` are set in your environment or an `.env` file before starting the stack.
+The web interface will be available on `http://localhost:${HOST_PORT}`. By default this is `8080`.
+
+## Docker Image
+
+Every push to the `main` branch automatically builds a Docker image and publishes
+it to Docker Hub as `chanzer0/media-server-trivia:latest`. You can pull it
+directly:
+
+```bash
+docker pull chanzer0/media-server-trivia:latest
+```
+
+The image expects the same environment variables as the compose file.
 
 ## Development
 
@@ -44,7 +60,8 @@ source venv/bin/activate
 pip install -r requirements.txt
 export PLEX_BASE_URL=http://your.plex.ip:port
 export PLEX_TOKEN=your_token
-flask --app app:create_app run
+export HOST_PORT=8080
+flask --app app:create_app run --port $HOST_PORT
 ```
 
 or, alternative on Windows:
@@ -55,7 +72,8 @@ venv\Scripts\activate
 pip install -r requirements.txt
 set PLEX_BASE_URL=http://your.plex.ip:port
 set PLEX_TOKEN=your_token
-flask --app app:create_app run
+set HOST_PORT=8080
+flask --app app:create_app run --port %HOST_PORT%
 ```
 
 ## License
