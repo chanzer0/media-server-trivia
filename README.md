@@ -1,2 +1,49 @@
-# media-server-trivia
-An unraid application that quizzes you on your own media library
+# Media Server Trivia
+
+A template for an Unraid-ready application that turns your Plex library into a trivia game. This project exposes a simple Flask web interface that connects to your Plex server and generates trivia questions from your media.
+
+## Features
+- Connects to a Plex server via API token
+- Lists your movies and TV shows
+- Generates a random trivia question from your library
+- Dockerized for easy deployment on Unraid or any Docker host
+
+## Requirements
+- Python 3.11 (for development) or Docker
+- A Plex API token and the base URL of your Plex server
+
+## Configuration
+The application reads two environment variables:
+
+```
+PLEX_BASE_URL=<http://your.plex.ip:32400>
+PLEX_TOKEN=<your_plex_token>
+```
+
+These can be supplied in `docker-compose.yml` or directly in your environment.
+
+## Running with Docker
+
+```
+docker compose up --build
+```
+
+The web interface will be available on `http://localhost:8080` by default.
+
+## Development
+
+Install dependencies and run the Flask development server:
+
+```
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+export PLEX_BASE_URL=http://your.plex.ip:32400
+export PLEX_TOKEN=your_token
+flask --app app:create_app run
+```
+
+## License
+
+This project is licensed under the MIT License.
+
