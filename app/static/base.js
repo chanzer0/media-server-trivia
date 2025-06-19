@@ -14,13 +14,14 @@ function initLayoutControls() {
     localStorage.setItem('darkMode', enabled ? '1' : '0');
   }
 
-  toggleDark.addEventListener('click', () => {
-    setDark(!body.classList.contains('dark-mode'));
+  toggleDark.addEventListener('change', () => {
+    setDark(toggleDark.checked);
   });
 
   // load saved mode
   if (localStorage.getItem('darkMode') === '1') {
     body.classList.add('dark-mode');
+    toggleDark.checked = true;
   }
 }
 

@@ -5,9 +5,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const summary = document.getElementById('posterSummary');
   const revealBtn = document.getElementById('posterReveal');
   const result = document.getElementById('posterAnswer');
+  const guessBtn = document.getElementById('posterGuessBtn');
+  const guessInput = document.getElementById('posterGuessInput');
+  const titleList = document.getElementById('posterTitleList');
   let data = null;
   let blur = 15;
   let count = 3;
+
+  async function loadTitles() {
+    const res = await fetch('/api/library');
+    const library = await res.json();
+    [...library.movies, ...library.shows].forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t;
+      titleList.appendChild(opt);
+    });
+  }
 
   async function init() {
     const res = await fetch('/api/trivia/poster');
@@ -32,8 +45,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (blur === 0 && count >= words.length) {
       revealBtn.disabled = true;
       result.textContent = `Answer: ${data.title}`;
+      guessBtn.disabled = true;
+      guessInput.disabled = true;
     }
   });
 
+  guessBtn.addEventListener('click', () => {
+    const guess = guessInput.value.trim().toLowerCase();
+    if (!data) return;
+    if (guess === data.title.toLowerCase()) {
+      result.innerHTML = `<div class='alert alert-success'>Correct! It was ${data.title}</div>`;
+      revealBtn.disabled = true;
+      guessBtn.disabled = true;
+      guessInput.disabled = true;
+    } else {
+      result.innerHTML = `<div class='alert alert-danger'>Try again!</div>`;
+    }
+  });
+
+  loadTitles();
   init();
 });
