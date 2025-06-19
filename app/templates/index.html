@@ -5,108 +5,30 @@
 <div class="row g-4">
   <div class="col-12 col-md-6 col-lg-4">
     <div class="card card-hover h-100">
-      <div class="card-body">
+      <div class="card-body text-center">
         <h5 class="card-title">Cast Reveal Game</h5>
         <p class="card-text">Guess the movie as cast members are revealed.</p>
-        <button id="castBtn" class="btn btn-primary mt-2">Start</button>
-        <div id="castGame" class="mt-3"></div>
+        <a href="{{ url_for('main.cast_game_page') }}" class="btn btn-primary mt-2">Play</a>
       </div>
     </div>
   </div>
   <div class="col-12 col-md-6 col-lg-4">
     <div class="card card-hover h-100">
-      <div class="card-body">
+      <div class="card-body text-center">
         <h5 class="card-title">Guess the Year</h5>
         <p class="card-text">How well do you know release dates?</p>
-        <button id="yearBtn" class="btn btn-primary mt-2">New Question</button>
-        <div id="yearGame" class="mt-3"></div>
+        <a href="{{ url_for('main.year_game_page') }}" class="btn btn-primary mt-2">Play</a>
       </div>
     </div>
   </div>
   <div class="col-12 col-md-6 col-lg-4">
     <div class="card card-hover h-100">
-      <div class="card-body">
+      <div class="card-body text-center">
         <h5 class="card-title">Poster Reveal</h5>
         <p class="card-text">The image becomes clearer each round.</p>
-        <button id="posterBtn" class="btn btn-primary mt-2">Reveal Poster</button>
-        <div id="posterGame" class="mt-3 text-center"></div>
+        <a href="{{ url_for('main.poster_game_page') }}" class="btn btn-primary mt-2">Play</a>
       </div>
     </div>
   </div>
 </div>
-
-<script>
-  document.getElementById('castBtn').addEventListener('click', async () => {
-    const res = await fetch('/api/trivia/cast');
-    const data = await res.json();
-    const div = document.getElementById('castGame');
-    if (data.cast) {
-      let index = 1;
-      div.innerHTML = `<div id='castList'></div><button id='revealCast' class='btn btn-sm btn-secondary mt-2'>Reveal Next</button>`;
-      const castList = document.getElementById('castList');
-      castList.innerHTML = `<span class='badge bg-info me-1'>${data.cast[0]}</span>`;
-      document.getElementById('revealCast').addEventListener('click', () => {
-        if (index < data.cast.length) {
-          castList.innerHTML += `<span class='badge bg-info me-1'>${data.cast[index]}</span>`;
-          index++;
-        } else {
-          document.getElementById('revealCast').disabled = true;
-          div.innerHTML += `<div class='mt-2 alert alert-primary'>Answer: ${data.title}</div>`;
-        }
-      });
-    } else {
-      div.innerHTML = `<div class='alert alert-warning'>${data.error}</div>`;
-    }
-  });
-
-  document.getElementById('yearBtn').addEventListener('click', async () => {
-    const res = await fetch('/api/trivia/year');
-    const data = await res.json();
-    const div = document.getElementById('yearGame');
-    if (data.title) {
-      div.innerHTML = `What year did <strong>${data.title}</strong> release? <input id='yearInput' class='form-control form-control-sm mt-2' placeholder='Enter year'><button id='yearGuess' class='btn btn-sm btn-secondary mt-2'>Guess</button><div id='yearAnswer' class='mt-2'></div>`;
-      document.getElementById('yearGuess').addEventListener('click', () => {
-        const guess = parseInt(document.getElementById('yearInput').value);
-        const ans = document.getElementById('yearAnswer');
-        if (guess === data.year) {
-          ans.innerHTML = `<span class='text-success'>Correct!</span>`;
-        } else {
-          ans.innerHTML = `<span class='text-danger'>Nope, it was ${data.year}</span>`;
-        }
-      });
-    } else {
-      div.innerHTML = `<div class='alert alert-warning'>${data.error}</div>`;
-    }
-  });
-
-  document.getElementById('posterBtn').addEventListener('click', async () => {
-    const res = await fetch('/api/trivia/poster');
-    const data = await res.json();
-    const div = document.getElementById('posterGame');
-    if (data.poster) {
-      let blur = 15;
-      const words = data.summary.split(' ');
-      let count = 3;
-      div.innerHTML = `<img id='posterImg' src='${data.poster}' style='max-width:100%;filter:blur(${blur}px);'><p id='posterSummary' class='mt-2'>${words.slice(0,count).join(' ')}...</p><button id='posterReveal' class='btn btn-sm btn-secondary mt-2'>Reveal More</button><div id='posterAnswer' class='mt-2'></div>`;
-      const img = document.getElementById('posterImg');
-      document.getElementById('posterReveal').addEventListener('click', () => {
-        if (blur > 0) {
-          blur -= 3;
-          if (blur < 0) blur = 0;
-          img.style.filter = `blur(${blur}px)`;
-        }
-        if (count < words.length) {
-          count += 3;
-          document.getElementById('posterSummary').innerText = words.slice(0,count).join(' ') + '...';
-        }
-        if (blur === 0 && count >= words.length) {
-          document.getElementById('posterReveal').disabled = true;
-          document.getElementById('posterAnswer').innerHTML = `Answer: ${data.title}`;
-        }
-      });
-    } else {
-      div.innerHTML = `<div class='alert alert-warning'>${data.error}</div>`;
-    }
-  });
-</script>
 {% endblock %}

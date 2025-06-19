@@ -2,10 +2,40 @@ body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
+body.dark-mode {
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+body.dark-mode .navbar {
+  background-color: #1f1f1f;
+}
+
+body.dark-mode .sidebar {
+  background-color: #1f1f1f;
+  border-color: #333;
+}
+
+body.dark-mode .card {
+  background-color: #242424;
+  color: #e0e0e0;
+}
+
 .sidebar {
   background-color: #f8f9fa;
   min-height: 100vh;
   border-right: 1px solid #dee2e6;
+  transition: width 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 60px !important;
+}
+
+.sidebar.collapsed .nav-link,
+.sidebar.collapsed h6,
+.sidebar.collapsed .text-center {
+  display: none;
 }
 
 .sidebar .nav-link {
@@ -25,4 +55,28 @@ body {
 .card-hover:hover {
   transform: translateY(-3px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cast-icons {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.cast-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background-color: #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+body.dark-mode .cast-circle {
+  background-color: #343a40;
+  color: #e0e0e0;
 }
