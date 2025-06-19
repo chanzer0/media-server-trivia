@@ -27,12 +27,27 @@ These can be supplied in `docker-compose.yml` or directly in your environment. `
 
 ## Running with Docker
 
+The included `docker-compose.yml` pulls the prebuilt image from Docker Hub and
+starts the container with your configured environment variables.
+
 ```
-docker compose up --build
+docker compose up
 ```
 
 Ensure that `PLEX_BASE_URL`, `PLEX_TOKEN` and `HOST_PORT` are set in your environment or an `.env` file before starting the stack.
 The web interface will be available on `http://localhost:${HOST_PORT}`. By default this is `8080`.
+
+## Docker Image
+
+Every push to the `main` branch automatically builds a Docker image and publishes
+it to Docker Hub as `chanzer0/media-server-trivia:latest`. You can pull it
+directly:
+
+```bash
+docker pull chanzer0/media-server-trivia:latest
+```
+
+The image expects the same environment variables as the compose file.
 
 ## Development
 
