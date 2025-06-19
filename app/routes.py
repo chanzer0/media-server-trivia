@@ -2,6 +2,8 @@ from flask import Blueprint, Flask, render_template, jsonify
 from .plex_service import PlexService
 from .trivia import TriviaEngine
 
+# kick build
+
 
 def init_routes(app: Flask, plex_service: PlexService):
     bp = Blueprint("main", __name__)
