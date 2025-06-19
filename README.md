@@ -5,7 +5,11 @@ A template for an Unraid-ready application that turns your Plex library into a t
 ## Features
 - Connects to a Plex server via API token
 - Lists your movies and TV shows
-- Generates a random trivia question from your library
+- Multiple trivia games:
+  - **Cast Reveal** - guess the movie as cast members are slowly revealed
+  - **Release Year Challenge** - pick the correct year a movie premiered
+  - **Blurred Poster** - identify a film as the poster becomes clearer with each round and more of the plot is shown
+  - **TV Show Trivia** - ideas for seasons, networks and more
 - Dockerized for easy deployment on Unraid or any Docker host
 
 ## Requirements
