@@ -8,21 +8,12 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   </head>
   <body class="bg-light">
-    <nav class="navbar navbar-dark bg-dark mb-4">
-      <div class="container-fluid d-flex align-items-center">
-        <button id="toggleSidebar" class="btn btn-outline-light me-2">&#9776;</button>
-        <span class="navbar-brand mb-0 h1">Plex Trivia</span>
-        <div class="ms-auto">
-          <button id="toggleDark" class="btn btn-outline-light">Dark Mode</button>
-        </div>
-      </div>
-    </nav>
     <div class="container-fluid">
       <div class="row flex-nowrap">
         <aside class="sidebar col-12 col-md-3 col-lg-2 p-3">
-          <div class="text-center mb-4">
-            <img src="https://via.placeholder.com/80" class="rounded-circle mb-2" alt="Profile picture">
-            <h5 class="fw-bold">Guest</h5>
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <a href="{{ url_for('main.index') }}" class="h4 text-decoration-none text-reset">Media Library Trivia</a>
+            <button id="toggleSidebar" class="btn btn-outline-secondary ms-2">&#9776;</button>
           </div>
           <ul class="nav flex-column mb-4">
             <li class="nav-item"><a class="nav-link" href="#">Profile</a></li>
@@ -34,6 +25,10 @@
             <li class="nav-item"><a class="nav-link" href="#">TV Trivia</a></li>
             <li class="nav-item"><a class="nav-link" href="#">Miscellaneous</a></li>
           </ul>
+          <div class="dark-switch-container form-check form-switch text-center mt-4">
+            <input class="form-check-input" type="checkbox" id="darkSwitch">
+            <label class="form-check-label" for="darkSwitch">Dark Mode</label>
+          </div>
         </aside>
         <main class="col py-4">
           {% block content %}{% endblock %}
