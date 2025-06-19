@@ -16,7 +16,7 @@ A template for an Unraid-ready application that turns your Plex library into a t
 The application reads two environment variables:
 
 ```
-PLEX_BASE_URL=<http://your.plex.ip:32400>
+PLEX_BASE_URL=<http://your.plex.ip:port>
 PLEX_TOKEN=<your_plex_token>
 ```
 
@@ -34,12 +34,24 @@ The web interface will be available on `http://localhost:8080` by default.
 
 Install dependencies and run the Flask development server:
 
+
 ```
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-export PLEX_BASE_URL=http://your.plex.ip:32400
+export PLEX_BASE_URL=http://your.plex.ip:port
 export PLEX_TOKEN=your_token
+flask --app app:create_app run
+```
+
+or, alternative on Windows:
+
+```
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+set PLEX_BASE_URL=http://your.plex.ip:port
+set PLEX_TOKEN=your_token
 flask --app app:create_app run
 ```
 
