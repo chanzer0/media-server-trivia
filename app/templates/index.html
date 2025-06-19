@@ -6,41 +6,47 @@
   <div class="col-12 col-md-6 col-lg-4">
     <div class="card card-hover h-100">
       <div class="card-body">
-        <h5 class="card-title">Leaderboard</h5>
-        <p class="card-text">Top players will appear here.</p>
+        <h5 class="card-title">Cast Reveal Challenge</h5>
+        <p class="card-text">Guess the movie as we slowly reveal its top cast one by one.</p>
+        <button class="btn btn-primary">Start Game</button>
       </div>
     </div>
   </div>
   <div class="col-12 col-md-6 col-lg-4">
     <div class="card card-hover h-100">
       <div class="card-body">
-        <h5 class="card-title">Stats</h5>
-        <p class="card-text">Your trivia statistics will be displayed.</p>
+        <h5 class="card-title">Release Year Quiz</h5>
+        <p class="card-text">Can you pick the correct year a movie came out?</p>
+        <button class="btn btn-primary">Start Game</button>
       </div>
     </div>
   </div>
   <div class="col-12 col-md-6 col-lg-4">
     <div class="card card-hover h-100">
       <div class="card-body">
-        <h5 class="card-title">Random Trivia</h5>
-        <p class="card-text">Test your knowledge with a quick question.</p>
-        <button id="triviaBtn" class="btn btn-primary mt-2">Get Random Trivia</button>
-        <div id="trivia" class="mt-3"></div>
+        <h5 class="card-title">Blurred Poster Guess</h5>
+        <p class="card-text">Identify the movie as the poster and plot slowly come into focus.</p>
+        <button class="btn btn-primary">Start Game</button>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6 col-lg-4">
+    <div class="card card-hover h-100">
+      <div class="card-body">
+        <h5 class="card-title">Budget & Awards Trivia</h5>
+        <p class="card-text">Test your knowledge of box office numbers and accolades.</p>
+        <button class="btn btn-primary">Start Game</button>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6 col-lg-4">
+    <div class="card card-hover h-100">
+      <div class="card-body">
+        <h5 class="card-title">Episode Quote Challenge</h5>
+        <p class="card-text">Guess the TV show from a short quote or scene description.</p>
+        <button class="btn btn-primary">Start Game</button>
       </div>
     </div>
   </div>
 </div>
-
-<script>
-  document.getElementById('triviaBtn').addEventListener('click', async () => {
-    const res = await fetch('/api/trivia');
-    const data = await res.json();
-    const div = document.getElementById('trivia');
-    if (data.question) {
-      div.innerHTML = `<div class='alert alert-info'><strong>Q:</strong> ${data.question}<br><strong>A:</strong> ${data.answer}</div>`;
-    } else {
-      div.innerHTML = `<div class='alert alert-warning'>${data.error}</div>`;
-    }
-  });
-</script>
 {% endblock %}
