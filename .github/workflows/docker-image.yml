@@ -20,4 +20,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: chanzer0/media-server-trivia:latest
+          tags: chanzero/media-server-trivia:latest
