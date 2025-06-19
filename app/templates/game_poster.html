@@ -6,6 +6,11 @@
   <img id="posterImg" style="max-width:100%;filter:blur(15px);" class="mb-3" />
   <p id="posterSummary" class="mb-3"></p>
   <button id="posterReveal" class="btn btn-primary">Reveal More</button>
+  <div class="input-group my-3 w-50 mx-auto">
+    <input id="posterGuessInput" list="posterTitleList" class="form-control" placeholder="Search titles">
+    <datalist id="posterTitleList"></datalist>
+    <button class="btn btn-primary" id="posterGuessBtn">Guess</button>
+  </div>
   <div id="posterAnswer" class="mt-3"></div>
 </div>
 <script src="{{ url_for('static', filename='poster.js') }}"></script>

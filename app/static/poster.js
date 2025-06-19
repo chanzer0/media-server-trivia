@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const summary = document.getElementById('posterSummary');
   const revealBtn = document.getElementById('posterReveal');
   const result = document.getElementById('posterAnswer');
+  const guessInput = document.getElementById('posterGuessInput');
+  const guessBtn = document.getElementById('posterGuessBtn');
+  const titleList = document.getElementById('posterTitleList');
   let data = null;
   let blur = 15;
   let count = 3;
@@ -35,5 +38,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  guessBtn.addEventListener('click', () => {
+    const guess = guessInput.value.trim().toLowerCase();
+    if (!data) return;
+    if (guess === data.title.toLowerCase()) {
+      result.innerHTML = `<div class='alert alert-success'>Correct! It was ${data.title}</div>`;
+      revealBtn.disabled = true;
+      guessBtn.disabled = true;
+    } else {
+      result.innerHTML = `<div class='alert alert-danger'>Try again!</div>`;
+    }
+  });
+
+  async function loadTitles() {
+    const res = await fetch('/api/library');
+    const library = await res.json();
+    [...library.movies, ...library.shows].forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t;
+      titleList.appendChild(opt);
+    });
+  }
+
+  loadTitles();
   init();
 });

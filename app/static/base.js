@@ -2,7 +2,7 @@
 function initLayoutControls() {
   const sidebar = document.querySelector('.sidebar');
   const toggleSidebar = document.getElementById('toggleSidebar');
-  const toggleDark = document.getElementById('toggleDark');
+  const toggleDark = document.getElementById('toggleDarkSwitch');
   const body = document.body;
 
   toggleSidebar.addEventListener('click', () => {
@@ -12,15 +12,17 @@ function initLayoutControls() {
   function setDark(enabled) {
     body.classList.toggle('dark-mode', enabled);
     localStorage.setItem('darkMode', enabled ? '1' : '0');
+    toggleDark.checked = enabled;
   }
 
-  toggleDark.addEventListener('click', () => {
-    setDark(!body.classList.contains('dark-mode'));
+  toggleDark.addEventListener('change', () => {
+    setDark(toggleDark.checked);
   });
 
   // load saved mode
   if (localStorage.getItem('darkMode') === '1') {
     body.classList.add('dark-mode');
+    toggleDark.checked = true;
   }
 }
 
