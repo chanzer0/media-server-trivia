@@ -7,8 +7,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const guessInput = document.getElementById('guessInput');
   const result = document.getElementById('result');
   const titleList = document.getElementById('titleList');
+  const posterImg = document.getElementById('moviePoster');
+  const tagline = document.getElementById('movieTagline');
   let data = null;
   let round = 1;
+  let blur = 10;
 
   function updateProgress() {
     progress.style.width = (round / 7 * 100) + '%';
@@ -29,10 +32,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const res = await fetch('/api/trivia/cast');
     data = await res.json();
     icons.innerHTML = '';
+    blur = 10;
+    if (posterImg) {
+      posterImg.style.filter = `blur(${blur}px)`;
+      posterImg.src = data.poster || '';
+    }
+    if (tagline) tagline.textContent = data.tagline || '';
     for (let i = 0; i < 7; i++) {
       const d = document.createElement('div');
       d.className = 'cast-circle';
-      d.textContent = i === 0 && data.cast.length > 0 ? data.cast[0] : '?';
+      if (i === 0 && data.cast.length > 0) {
+        if (data.cast[0].profile) {
+          const img = document.createElement('img');
+          img.src = data.cast[0].profile;
+          img.className = 'cast-img';
+          img.alt = data.cast[0].name;
+          d.appendChild(img);
+        } else {
+          d.textContent = data.cast[0].name;
+        }
+      } else {
+        d.textContent = '?';
+      }
       icons.appendChild(d);
     }
     updateProgress();
@@ -47,7 +68,23 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       round++;
       if (round <= data.cast.length) {
-        document.querySelectorAll('.cast-circle')[round-1].textContent = data.cast[round-1];
+        const elem = document.querySelectorAll('.cast-circle')[round-1];
+        const castMember = data.cast[round-1];
+        if (castMember.profile) {
+          const img = document.createElement('img');
+          img.src = castMember.profile;
+          img.className = 'cast-img';
+          img.alt = castMember.name;
+          elem.textContent = '';
+          elem.appendChild(img);
+        } else {
+          elem.textContent = castMember.name;
+        }
+        if (blur > 0 && posterImg) {
+          blur -= 2;
+          if (blur < 0) blur = 0;
+          posterImg.style.filter = `blur(${blur}px)`;
+        }
         result.innerHTML = `<div class='alert alert-danger'>Try again!</div>`;
       } else {
         result.innerHTML = `<div class='alert alert-info'>Out of guesses. It was ${data.title}</div>`;

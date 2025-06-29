@@ -20,6 +20,22 @@ class TMDbService:
             print(f"Failed to fetch movie details: {e}")
             return None
 
+    def get_movie_credits(self, movie_id: int):
+        """Return cast/crew information for a movie."""
+        if not self.client:
+            return None
+        try:
+            return self.client.movie(movie_id).credits()
+        except Exception as e:
+            print(f"Failed to fetch movie credits: {e}")
+            return None
+
+    def image_url(self, path: str | None, size: str = "w500") -> str | None:
+        """Return the full TMDb image URL for the given path."""
+        if not path:
+            return None
+        return f"https://image.tmdb.org/t/p/{size}{path}"
+
     def search_movies(self, query: str):
         """Search for movies by text query."""
         if not self.client:

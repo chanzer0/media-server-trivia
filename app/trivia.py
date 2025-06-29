@@ -9,9 +9,9 @@ class TriviaEngine:
         self.tmdb = tmdb_service
 
     def _get_tmdb_details(self, movie):
-        """Return TMDb metadata for the given Plex movie."""
+        """Return (metadata, tmdb_id) for the given Plex movie."""
         if not self.tmdb:
-            return None
+            return None, None
 
         tmdb_id = None
         for guid in getattr(movie, "guids", []):
@@ -24,8 +24,9 @@ class TriviaEngine:
                 continue
 
         if tmdb_id:
-            return self.tmdb.get_movie_details(tmdb_id)
-        return None
+            details = self.tmdb.get_movie_details(tmdb_id)
+            return details, tmdb_id
+        return None, None
 
     def _random_movie(self):
         """Return a random movie from the Plex library."""
@@ -39,7 +40,7 @@ class TriviaEngine:
         if not movie:
             return None
         question = f"Which movie features '{movie}'?"
-        tmdb = self._get_tmdb_details(movie)
+        tmdb, _ = self._get_tmdb_details(movie)
         return {"question": question, "answer": movie, "tmdb": tmdb}
 
     def cast_reveal(self):
@@ -47,21 +48,46 @@ class TriviaEngine:
         movie = self._random_movie()
         if not movie:
             return None
-        try:
-            cast = [actor.tag for actor in movie.actors][:7]
-        except Exception:
-            cast = []
+        tmdb, tmdb_id = self._get_tmdb_details(movie)
+        cast = []
+        if tmdb_id:
+            credits = self.tmdb.get_movie_credits(tmdb_id)
+            if credits:
+                for c in credits.get("cast", [])[:7]:
+                    cast.append({
+                        "name": c.get("name"),
+                        "profile": self.tmdb.image_url(c.get("profile_path"), "w185"),
+                    })
+        if not cast:
+            try:
+                cast = [{"name": actor.tag, "profile": None} for actor in movie.actors][:7]
+            except Exception:
+                cast = []
 
-        tmdb = self._get_tmdb_details(movie)
-        return {"title": movie.title, "cast": cast, "tmdb": tmdb}
+        poster = self.tmdb.image_url(tmdb.get("poster_path")) if tmdb else None
+        tagline = tmdb.get("tagline") if tmdb else None
+        return {
+            "title": movie.title,
+            "cast": cast,
+            "poster": poster,
+            "tagline": tagline,
+        }
 
     def guess_year(self):
         """Return the title and year for a random movie."""
         movie = self._random_movie()
         if not movie:
             return None
-        tmdb = self._get_tmdb_details(movie)
-        return {"title": movie.title, "year": movie.year, "summary": movie.summary, "tmdb": tmdb}
+        tmdb, _ = self._get_tmdb_details(movie)
+        poster = self.tmdb.image_url(tmdb.get("poster_path")) if tmdb else None
+        tagline = tmdb.get("tagline") if tmdb else None
+        return {
+            "title": movie.title,
+            "year": movie.year,
+            "summary": movie.summary,
+            "poster": poster,
+            "tagline": tagline,
+        }
 
     def poster_reveal(self):
         """Return poster and summary information for a random movie."""
@@ -78,9 +104,13 @@ class TriviaEngine:
             except Exception:
                 poster = None
 
+        tmdb, _ = self._get_tmdb_details(movie)
+        if not poster and tmdb:
+            poster = self.tmdb.image_url(tmdb.get("poster_path"))
+        tagline = tmdb.get("tagline") if tmdb else None
         return {
             "title": movie.title,
             "poster": poster,
             "summary": movie.summary,
-            "tmdb": self._get_tmdb_details(movie),
+            "tagline": tagline,
         }

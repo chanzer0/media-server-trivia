@@ -3,6 +3,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const img = document.getElementById('posterImg');
   const summary = document.getElementById('posterSummary');
+  const tagline = document.getElementById('posterTagline');
   const revealBtn = document.getElementById('posterReveal');
   const result = document.getElementById('posterAnswer');
   const guessBtn = document.getElementById('guessBtn');
@@ -18,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data.poster) {
       img.src = data.poster;
     }
+    if (tagline) tagline.textContent = data.tagline || '';
     summary.textContent = data.summary.split(' ').slice(0, count).join(' ') + '...';
   }
 
@@ -55,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
       result.innerHTML = `<div class='alert alert-success'>Correct! It was ${data.title}</div>`;
       revealBtn.disabled = true;
       guessBtn.disabled = true;
+      img.style.filter = 'none';
     } else {
       result.innerHTML = `<div class='alert alert-danger'>Try again!</div>`;
     }
