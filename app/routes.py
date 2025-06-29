@@ -1,10 +1,11 @@
 from flask import Blueprint, Flask, render_template, jsonify
 from .plex_service import PlexService
+from .tmdb_service import TMDbService
 from .trivia import TriviaEngine
 
 
 # kick build
-def init_routes(app: Flask, plex_service: PlexService):
+def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService):
     bp = Blueprint("main", __name__)
     trivia = TriviaEngine(plex_service)
 
