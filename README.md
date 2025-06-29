@@ -22,6 +22,7 @@ The application reads a few environment variables:
 PLEX_BASE_URL=<http://your.plex.ip:port>
 PLEX_TOKEN=<your_plex_token>
 HOST_PORT=<port_for_web_ui>
+TMDB_API_KEY=<your_tmdb_api_key>
 ```
 These can be supplied in `docker-compose.yml` or directly in your environment. `HOST_PORT` controls which port the web interface listens on.
 
@@ -34,7 +35,7 @@ starts the container with your configured environment variables.
 docker compose up
 ```
 
-Ensure that `PLEX_BASE_URL`, `PLEX_TOKEN` and `HOST_PORT` are set in your environment or an `.env` file before starting the stack.
+Ensure that `PLEX_BASE_URL`, `PLEX_TOKEN`, `HOST_PORT` and `TMDB_API_KEY` are set in your environment or an `.env` file before starting the stack.
 The web interface will be available on `http://localhost:${HOST_PORT}`. By default this is `5054`.
 
 ## Docker Image
@@ -61,6 +62,7 @@ pip install -r requirements.txt
 export PLEX_BASE_URL=http://your.plex.ip:port
 export PLEX_TOKEN=your_token
 export HOST_PORT=5054
+export TMDB_API_KEY=your_tmdb_api_key
 flask --app app:create_app run --port $HOST_PORT
 ```
 
@@ -73,6 +75,7 @@ pip install -r requirements.txt
 set PLEX_BASE_URL=http://your.plex.ip:port
 set PLEX_TOKEN=your_token
 set HOST_PORT=5054
+set TMDB_API_KEY=your_tmdb_api_key
 flask --app app:create_app run --port %HOST_PORT%
 ```
 
