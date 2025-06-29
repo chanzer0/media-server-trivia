@@ -7,6 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const guessInput = document.getElementById('guessInput');
   const result = document.getElementById('result');
   const titleList = document.getElementById('titleList');
+  const posterImg = document.getElementById('moviePoster');
+  const tagline = document.getElementById('movieTagline');
   let data = null;
   let round = 1;
 
@@ -29,10 +31,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const res = await fetch('/api/trivia/cast');
     data = await res.json();
     icons.innerHTML = '';
+    posterImg.src = data.poster || '';
+    tagline.textContent = data.tagline || '';
     for (let i = 0; i < 7; i++) {
       const d = document.createElement('div');
       d.className = 'cast-circle';
-      d.textContent = i === 0 && data.cast.length > 0 ? data.cast[0] : '?';
+      if (i === 0 && data.cast.length > 0) {
+        const actor = data.cast[0];
+        if (actor.profile) {
+          const img = document.createElement('img');
+          img.src = actor.profile;
+          img.className = 'img-fluid rounded-circle';
+          d.appendChild(img);
+        } else {
+          d.textContent = actor.name;
+        }
+      } else {
+        d.textContent = '?';
+      }
       icons.appendChild(d);
     }
     updateProgress();
@@ -47,7 +63,17 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       round++;
       if (round <= data.cast.length) {
-        document.querySelectorAll('.cast-circle')[round-1].textContent = data.cast[round-1];
+        const circle = document.querySelectorAll('.cast-circle')[round-1];
+        const actor = data.cast[round-1];
+        circle.textContent = '';
+        if (actor.profile) {
+          const img = document.createElement('img');
+          img.src = actor.profile;
+          img.className = 'img-fluid rounded-circle';
+          circle.appendChild(img);
+        } else {
+          circle.textContent = actor.name;
+        }
         result.innerHTML = `<div class='alert alert-danger'>Try again!</div>`;
       } else {
         result.innerHTML = `<div class='alert alert-info'>Out of guesses. It was ${data.title}</div>`;

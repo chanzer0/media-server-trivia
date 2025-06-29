@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const guessInput = document.getElementById('yearInput');
   const guessBtn = document.getElementById('yearGuess');
   const result = document.getElementById('yearResult');
+  const posterImg = document.getElementById('yearPoster');
+  const tagline = document.getElementById('yearTagline');
   let data = null;
 
   async function newQuestion() {
@@ -13,6 +15,8 @@ document.addEventListener('DOMContentLoaded', () => {
     question.textContent = `What year did ${data.title} release?`;
     guessInput.value = '';
     result.textContent = '';
+    posterImg.src = data.poster || '';
+    tagline.textContent = data.tagline || '';
   }
 
   guessBtn.addEventListener('click', () => {

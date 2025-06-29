@@ -107,6 +107,7 @@ body.dark-mode .card {
   align-items: center;
   justify-content: center;
   font-weight: 600;
+  overflow: hidden;
 }
 
 .sidebar-bottom {
@@ -116,4 +117,10 @@ body.dark-mode .card {
 body.dark-mode .cast-circle {
   background-color: #343a40;
   color: #e0e0e0;
+}
+
+.cast-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
