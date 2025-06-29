@@ -67,8 +67,16 @@ class TriviaEngine:
         cast = []
         if credits and hasattr(credits, "cast"):
             for person in list(getattr(credits, "cast"))[:7]:
-                name = getattr(person, "name", None) or getattr(person, "original_name", "")
-                profile = self.tmdb.build_image_url(getattr(person, "profile_path", None), "w185") if self.tmdb else None
+                name = getattr(person, "name", None) or getattr(
+                    person, "original_name", ""
+                )
+                profile = (
+                    self.tmdb.build_image_url(
+                        getattr(person, "profile_path", None), "w185"
+                    )
+                    if self.tmdb
+                    else None
+                )
                 cast.append({"name": name, "profile": profile})
         else:
             for n in cast_names:
@@ -76,7 +84,9 @@ class TriviaEngine:
 
         poster = None
         if tmdb_details and hasattr(tmdb_details, "poster_path"):
-            poster = self.tmdb.build_image_url(getattr(tmdb_details, "poster_path", None))
+            poster = self.tmdb.build_image_url(
+                getattr(tmdb_details, "poster_path", None)
+            )
 
         tagline = getattr(tmdb_details, "tagline", None) if tmdb_details else None
 
@@ -96,14 +106,20 @@ class TriviaEngine:
         poster = None
         tagline = None
         if tmdb_details:
-            poster = self.tmdb.build_image_url(getattr(tmdb_details, "poster_path", None)) if self.tmdb else None
+            poster = (
+                self.tmdb.build_image_url(getattr(tmdb_details, "poster_path", None))
+                if self.tmdb
+                else None
+            )
             tagline = getattr(tmdb_details, "tagline", None)
+        tmdb = self._get_tmdb_details(movie)
         return {
             "title": movie.title,
             "year": movie.year,
             "summary": movie.summary,
             "poster": poster,
             "tagline": tagline,
+            "tmdb": tmdb,
         }
 
     def poster_reveal(self):
@@ -123,7 +139,11 @@ class TriviaEngine:
 
         tmdb_details = self._get_tmdb_details(movie)
         if not poster and tmdb_details:
-            poster = self.tmdb.build_image_url(getattr(tmdb_details, "poster_path", None)) if self.tmdb else None
+            poster = (
+                self.tmdb.build_image_url(getattr(tmdb_details, "poster_path", None))
+                if self.tmdb
+                else None
+            )
         tagline = getattr(tmdb_details, "tagline", None) if tmdb_details else None
         return {
             "title": movie.title,
