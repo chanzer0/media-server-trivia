@@ -3,6 +3,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const img = document.getElementById('posterImg');
   const summary = document.getElementById('posterSummary');
+  const tagline = document.getElementById('posterTagline');
   const revealBtn = document.getElementById('posterReveal');
   const result = document.getElementById('posterAnswer');
   const guessBtn = document.getElementById('guessBtn');
@@ -18,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data.poster) {
       img.src = data.poster;
     }
+    tagline.textContent = data.tagline || '';
     summary.textContent = data.summary.split(' ').slice(0, count).join(' ') + '...';
   }
 

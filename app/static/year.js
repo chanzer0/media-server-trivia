@@ -2,6 +2,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   const question = document.getElementById('yearQuestion');
+  const tagline = document.getElementById('yearTagline');
   const guessInput = document.getElementById('yearInput');
   const guessBtn = document.getElementById('yearGuess');
   const result = document.getElementById('yearResult');
@@ -11,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const res = await fetch('/api/trivia/year');
     data = await res.json();
     question.textContent = `What year did ${data.title} release?`;
+    tagline.textContent = data.tagline || '';
     guessInput.value = '';
     result.textContent = '';
   }

@@ -53,7 +53,30 @@ class TriviaEngine:
             cast = []
 
         tmdb = self._get_tmdb_details(movie)
-        return {"title": movie.title, "cast": cast, "tmdb": tmdb}
+        poster = None
+        tagline = None
+        tmdb_cast = []
+        if tmdb:
+            poster_path = tmdb.get("poster_path")
+            if poster_path:
+                poster = f"https://image.tmdb.org/t/p/w342{poster_path}"
+            tagline = tmdb.get("tagline")
+            credits = tmdb.get("credits", {})
+            for member in credits.get("cast", [])[:7]:
+                tmdb_cast.append(
+                    {
+                        "name": member.get("name"),
+                        "profile_path": member.get("profile_path"),
+                    }
+                )
+
+        return {
+            "title": movie.title,
+            "cast": cast,
+            "tmdb_cast": tmdb_cast,
+            "poster": poster,
+            "tagline": tagline,
+        }
 
     def guess_year(self):
         """Return the title and year for a random movie."""
@@ -61,7 +84,13 @@ class TriviaEngine:
         if not movie:
             return None
         tmdb = self._get_tmdb_details(movie)
-        return {"title": movie.title, "year": movie.year, "summary": movie.summary, "tmdb": tmdb}
+        tagline = tmdb.get("tagline") if tmdb else None
+        return {
+            "title": movie.title,
+            "year": movie.year,
+            "summary": movie.summary,
+            "tagline": tagline,
+        }
 
     def poster_reveal(self):
         """Return poster and summary information for a random movie."""
@@ -78,9 +107,20 @@ class TriviaEngine:
             except Exception:
                 poster = None
 
+        tmdb = self._get_tmdb_details(movie)
+        tagline = None
+        if tmdb:
+            poster_path = tmdb.get("poster_path")
+            if poster_path and not poster:
+                poster = f"https://image.tmdb.org/t/p/w342{poster_path}"
+            tagline = tmdb.get("tagline")
+            overview = tmdb.get("overview")
+            if not movie.summary and overview:
+                movie.summary = overview
+
         return {
             "title": movie.title,
             "poster": poster,
             "summary": movie.summary,
-            "tmdb": self._get_tmdb_details(movie),
+            "tagline": tagline,
         }
