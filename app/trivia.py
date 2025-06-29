@@ -61,7 +61,12 @@ class TriviaEngine:
         if not movie:
             return None
         tmdb = self._get_tmdb_details(movie)
-        return {"title": movie.title, "year": movie.year, "summary": movie.summary, "tmdb": tmdb}
+        return {
+            "title": movie.title,
+            "year": movie.year,
+            "summary": movie.summary,
+            "tmdb": tmdb,
+        }
 
     def poster_reveal(self):
         """Return poster and summary information for a random movie."""
