@@ -7,7 +7,7 @@ from .trivia import TriviaEngine
 # kick build
 def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService):
     bp = Blueprint("main", __name__)
-    trivia = TriviaEngine(plex_service)
+    trivia = TriviaEngine(plex_service, tmdb_service)
 
     @bp.route("/")
     def index():

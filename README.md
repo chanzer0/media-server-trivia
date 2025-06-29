@@ -10,6 +10,7 @@ A template for an Unraid-ready application that turns your Plex library into a t
   - Guess the Release Year
   - Poster Reveal Challenge
 - Dockerized for easy deployment on Unraid or any Docker host
+- Retrieves additional metadata from TMDb using the TMDb GUIDs stored in your Plex library
 
 ## Requirements
 - Python 3.11 (for development) or Docker
