@@ -9,6 +9,20 @@ import json
 import hashlib
 from pathlib import Path
 
+# Suppress OpenCV/FFmpeg H.264 error messages
+import logging
+logging.getLogger('libav').setLevel(logging.CRITICAL)
+logging.getLogger('ffmpeg').setLevel(logging.CRITICAL)
+
+# Set OpenCV log level to reduce noise (try different attribute names for compatibility)
+try:
+    cv2.setLogLevel(cv2.LOG_LEVEL_ERROR)
+except AttributeError:
+    try:
+        cv2.setLogLevel(3)  # 3 = ERROR level in OpenCV
+    except:
+        pass  # Ignore if not supported in this OpenCV version
+
 
 class TriviaEngine:
     """Generates trivia questions from Plex media and TMDb metadata."""
@@ -517,9 +531,15 @@ class TriviaEngine:
             try:
                 start = time.time()
                 cap = cv2.VideoCapture(video_path, backend)
+                
+                # Set error recovery options for H.264 streams
+                if backend == cv2.CAP_FFMPEG:
+                    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('H','2','6','4'))
+                    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                
                 if cap.isOpened():
                     ret, frame = cap.read()
-                    if ret:
+                    if ret and frame is not None:
                         open_time = time.time() - start
                         if open_time < fastest_time:
                             fastest_time = open_time
@@ -571,8 +591,16 @@ class TriviaEngine:
                     if session_id in self.active_sessions:
                         self.active_sessions[session_id]['cap'] = cap
 
-            # Optimize capture properties
+            # Optimize capture properties for H.264 streams
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            
+            # Set error recovery options to handle corrupted H.264 streams
+            try:
+                # These properties help with corrupted H.264 streams
+                cap.set(cv2.CAP_PROP_CONVERT_RGB, 1)  # Force RGB conversion
+                cap.set(cv2.CAP_PROP_FORMAT, cv2.CAP_PROP_FORMAT)  # Use default format
+            except Exception:
+                pass  # Ignore if properties aren't supported
             
             # Get video properties
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -596,6 +624,9 @@ class TriviaEngine:
             # Use frame seeking for better performance instead of reading every frame
             frame_positions = list(range(0, total_frames, actual_sample_rate))[:300]  # Cap at 300 samples
             
+            failed_frames = 0
+            max_failed_frames = 50  # Allow up to 50 failed frames before giving up
+            
             for i, frame_pos in enumerate(frame_positions):
                 # Check if session was cancelled
                 if session_id:
@@ -605,14 +636,26 @@ class TriviaEngine:
                             cap.release()
                             return None
 
-                # Seek to specific frame position
-                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_pos)
-                ret, frame = cap.read()
-                
-                if not ret:
-                    continue
-
+                # Seek to specific frame position with error handling
                 try:
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_pos)
+                    ret, frame = cap.read()
+                    
+                    if not ret or frame is None:
+                        failed_frames += 1
+                        if failed_frames > max_failed_frames:
+                            print(f"Too many failed frames ({failed_frames}), stopping processing")
+                            break
+                        continue
+
+                    # Validate frame integrity
+                    if frame.size == 0 or len(frame.shape) != 3:
+                        failed_frames += 1
+                        continue
+
+                    # Reset failed frame counter on successful read
+                    failed_frames = 0
+
                     # Optimized resize using cv2.resize directly to target size
                     if frame.shape[:2] != target_size[::-1]:  # height, width vs width, height
                         frame_resized = cv2.resize(frame, target_size)
@@ -621,6 +664,10 @@ class TriviaEngine:
 
                     # Use OpenCV's optimized mean function (much faster than numpy)
                     avg_color_bgr = cv2.mean(frame_resized)[:3]  # Returns BGR values
+
+                    # Validate color values
+                    if any(c != c for c in avg_color_bgr):  # Check for NaN
+                        continue
 
                     # Convert BGR to RGB and to hex
                     hex_color = "#{:02x}{:02x}{:02x}".format(
@@ -645,7 +692,11 @@ class TriviaEngine:
                                       'processing')
 
                 except Exception as e:
+                    failed_frames += 1
                     print(f"Error processing frame {frame_pos}: {e}")
+                    if failed_frames > max_failed_frames:
+                        print(f"Too many failed frames ({failed_frames}), stopping processing")
+                        break
                     continue
 
             cap.release()
