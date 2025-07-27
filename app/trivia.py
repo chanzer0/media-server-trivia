@@ -151,6 +151,22 @@ class TriviaEngine:
             return None
         return random.choice(movies)
 
+    def _get_random_movies(self, count=4, exclude_movie=None):
+        """Return a list of random movies from the Plex library."""
+        movies = self.plex.get_movies()
+        if not movies:
+            return []
+        
+        # Filter out the excluded movie if provided
+        if exclude_movie:
+            movies = [m for m in movies if m.title != exclude_movie.title]
+        
+        # If we don't have enough movies, return what we have
+        if len(movies) < count:
+            return movies
+        
+        return random.sample(movies, count)
+
     def random_question(self):
         movie = self._random_movie()
         if not movie:
@@ -681,6 +697,22 @@ class TriviaEngine:
         
         if cached_data:
             print(f"Using cached frame data for: {movie.title}")
+            # Generate multiple choice options
+            other_movies = self._get_random_movies(3, exclude_movie=movie)
+            movie_options = [movie] + other_movies
+            random.shuffle(movie_options)  # Randomize the order
+            
+            # Find the correct answer index
+            correct_answer = next(i for i, m in enumerate(movie_options) if m.title == movie.title)
+            
+            # Format movie options for frontend
+            options = []
+            for m in movie_options:
+                if hasattr(m, 'year') and m.year:
+                    options.append(f"{m.title} ({m.year})")
+                else:
+                    options.append(m.title)
+            
             # Return cached data immediately with movie metadata
             tmdb_data = self._get_tmdb_details(movie)
             result = {
@@ -691,6 +723,8 @@ class TriviaEngine:
                 "total_samples": len(cached_data),
                 "sample_rate": sample_rate,
                 "tmdb": tmdb_data,
+                "options": options,
+                "correct_answer": correct_answer
             }
             return {
                 "session_id": None,  # No session needed for cached data
@@ -717,6 +751,22 @@ class TriviaEngine:
                     # Cache the frame data for future use
                     self._cache_frame_data(cache_key, frame_colors)
                     
+                    # Generate multiple choice options
+                    other_movies = self._get_random_movies(3, exclude_movie=movie)
+                    movie_options = [movie] + other_movies
+                    random.shuffle(movie_options)  # Randomize the order
+                    
+                    # Find the correct answer index
+                    correct_answer = next(i for i, m in enumerate(movie_options) if m.title == movie.title)
+                    
+                    # Format movie options for frontend
+                    options = []
+                    for m in movie_options:
+                        if hasattr(m, 'year') and m.year:
+                            options.append(f"{m.title} ({m.year})")
+                        else:
+                            options.append(m.title)
+                    
                     # Get TMDb data for additional metadata
                     tmdb_data = self._get_tmdb_details(movie)
                     
@@ -728,6 +778,8 @@ class TriviaEngine:
                         "total_samples": len(frame_colors),
                         "sample_rate": sample_rate,
                         "tmdb": tmdb_data,
+                        "options": options,
+                        "correct_answer": correct_answer
                     }
                     
                     with self.session_lock:

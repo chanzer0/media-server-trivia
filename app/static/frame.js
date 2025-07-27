@@ -3,18 +3,14 @@
 document.addEventListener('DOMContentLoaded', () => {
   const loadingState = document.getElementById('loadingState');
   const colorBarContainer = document.getElementById('colorBarContainer');
-  const inputSection = document.getElementById('inputSection');
+  const multipleChoiceSection = document.getElementById('multipleChoiceSection');
   const colorBar = document.getElementById('colorBar');
   const frameCount = document.getElementById('frameCount');
   const sampleRate = document.getElementById('sampleRate');
-  const guessInput = document.getElementById('guessInput');
-  const guessBtn = document.getElementById('guessBtn');
+  const choiceButtons = document.getElementById('choiceButtons');
   const result = document.getElementById('frameResult');
-  const customDropdown = document.getElementById('customDropdown');
   
   let data = null;
-  let allTitles = [];
-  let selectedIndex = -1;
   let ctx = null;
   let currentSessionId = null;
   let progressInterval = null;
@@ -56,52 +52,39 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
-  // Custom dropdown functionality (reused from other games)
-  function showDropdown(filteredTitles) {
-    customDropdown.innerHTML = '';
-    const limitedTitles = filteredTitles.slice(0, 10);
+  // Multiple choice functionality
+  function createChoiceButtons(options, correctAnswer) {
+    choiceButtons.innerHTML = '';
     
-    if (limitedTitles.length > 0) {
-      limitedTitles.forEach((title, index) => {
-        const option = document.createElement('div');
-        option.className = 'dropdown-option';
-        option.textContent = title;
-        option.addEventListener('click', () => selectOption(title));
-        customDropdown.appendChild(option);
-      });
-      customDropdown.classList.add('show');
-    } else {
-      hideDropdown();
-    }
-  }
-
-  function hideDropdown() {
-    customDropdown.classList.remove('show');
-    selectedIndex = -1;
-  }
-
-  function selectOption(title) {
-    guessInput.value = title;
-    hideDropdown();
-    guessInput.focus();
-  }
-
-  function highlightOption(index) {
-    const options = customDropdown.querySelectorAll('.dropdown-option');
-    options.forEach((opt, i) => {
-      opt.classList.toggle('highlighted', i === index);
+    options.forEach((option, index) => {
+      const button = document.createElement('button');
+      button.className = 'choice-button';
+      button.textContent = option;
+      button.addEventListener('click', () => handleChoiceClick(index, correctAnswer));
+      choiceButtons.appendChild(button);
     });
   }
 
-  async function loadTitles() {
-    try {
-      const res = await fetch('/api/library');
-      const library = await res.json();
-      allTitles = [...library.movies, ...library.shows];
-      console.log(`Loaded ${allTitles.length} titles for autocomplete`);
-    } catch (error) {
-      console.error('Failed to load titles:', error);
-      allTitles = [];
+  function handleChoiceClick(selectedIndex, correctAnswer) {
+    const buttons = choiceButtons.querySelectorAll('.choice-button');
+    
+    // Disable all buttons
+    buttons.forEach(button => {
+      button.classList.add('disabled');
+    });
+    
+    // Show correct/incorrect styling
+    buttons[selectedIndex].classList.add(selectedIndex === correctAnswer ? 'correct' : 'incorrect');
+    if (selectedIndex !== correctAnswer) {
+      buttons[correctAnswer].classList.add('correct');
+    }
+    
+    // Show result
+    if (selectedIndex === correctAnswer) {
+      result.innerHTML = `<div class='result success'>🎉 Correct! It was "${data.title}"</div>`;
+    } else {
+      const correctTitle = data.options[correctAnswer];
+      result.innerHTML = `<div class='result error'>❌ Wrong! The correct answer was "${correctTitle}"</div>`;
     }
   }
 
@@ -175,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Hide loading and show game
     loadingState.style.display = 'none';
     colorBarContainer.style.display = 'block';
-    inputSection.style.display = 'flex';
+    multipleChoiceSection.style.display = 'block';
     
     // Initialize canvas and draw color bar
     initCanvas();
@@ -184,6 +167,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update info display
     frameCount.textContent = `${data.total_samples} color samples`;
     sampleRate.textContent = `Every ${data.sample_rate}th frame`;
+    
+    // Create multiple choice buttons
+    createChoiceButtons(data.options, data.correct_answer);
     
     console.log(`Game loaded: ${data.total_samples} samples from "${data.title}"`);
   }
@@ -200,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Reset UI
       loadingState.style.display = 'block';
       colorBarContainer.style.display = 'none';
-      inputSection.style.display = 'none';
+      multipleChoiceSection.style.display = 'none';
       result.innerHTML = '';
       
       // Clear any existing progress interval
@@ -246,72 +232,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
-  // Input event handlers
-  guessInput.addEventListener('input', (e) => {
-    const query = e.target.value.toLowerCase().trim();
-    
-    if (query.length > 0) {
-      const filtered = allTitles.filter(title => 
-        title.toLowerCase().includes(query)
-      );
-      showDropdown(filtered);
-    } else {
-      hideDropdown();
-    }
-    selectedIndex = -1;
-  });
-
-  guessInput.addEventListener('keydown', (e) => {
-    const options = customDropdown.querySelectorAll('.dropdown-option');
-    
-    switch(e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        selectedIndex = Math.min(selectedIndex + 1, options.length - 1);
-        highlightOption(selectedIndex);
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        selectedIndex = Math.max(selectedIndex - 1, -1);
-        highlightOption(selectedIndex);
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (selectedIndex >= 0 && options[selectedIndex]) {
-          selectOption(options[selectedIndex].textContent);
-        } else {
-          guessBtn.click();
-        }
-        break;
-      case 'Escape':
-        hideDropdown();
-        break;
-    }
-  });
-
-  // Click outside to close dropdown
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.input-container')) {
-      hideDropdown();
-    }
-  });
-
-  guessBtn.addEventListener('click', () => {
-    const guess = guessInput.value.trim();
-    if (!data || !guess) return;
-    
-    hideDropdown();
-    
-    // Extract title from "Title (Year)" format if present
-    const guessTitle = guess.toLowerCase().replace(/\s*\(\d{4}\)\s*$/, '').trim();
-    
-    if (guessTitle === data.title.toLowerCase()) {
-      result.innerHTML = `<div class='result success'>🎉 Correct! It was "${data.title}"</div>`;
-      guessBtn.disabled = true;
-    } else {
-      result.innerHTML = `<div class='result error'>❌ Try again! Study the color patterns...</div>`;
-    }
-  });
 
   // Handle canvas clicks for frame inspection
   colorBar.addEventListener('click', (e) => {
@@ -388,6 +308,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize the game
   console.log('Frame Color Challenge initialized');
-  loadTitles();
   initGame();
 });

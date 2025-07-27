@@ -26,23 +26,12 @@
     
   </div>
 
-  <!-- Input Section -->
-  <div class="input-group" style="display: none;" id="inputSection">
-    <div class="input-container">
-      <input 
-        id="guessInput" 
-        class="form-control" 
-        placeholder="Enter movie title..."
-        autocomplete="off"
-      >
-      <div id="customDropdown" class="custom-dropdown"></div>
+  <!-- Multiple Choice Section -->
+  <div class="multiple-choice-section" style="display: none;" id="multipleChoiceSection">
+    <h3>Which movie does this color pattern represent?</h3>
+    <div class="choice-buttons" id="choiceButtons">
+      <!-- Options will be dynamically inserted here -->
     </div>
-    <button class="btn btn-primary" id="guessBtn">
-      Submit Guess
-      <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
-      </svg>
-    </button>
   </div>
 
   <!-- Result Display -->
@@ -55,6 +44,7 @@
       <li>Each vertical line represents the average color of a movie frame</li>
       <li>Colors flow from left to right throughout the movie</li>
       <li>Look for patterns, color shifts, and distinctive visual signatures</li>
+      <li>Choose the correct movie from the four options provided</li>
       <li>Click on any color bar to see which sample it represents</li>
     </ul>
   </div>
@@ -141,7 +131,87 @@
   color: var(--text-secondary);
 }
 
+/* Multiple Choice Styling */
+.multiple-choice-section {
+  margin: 2rem 0;
+  text-align: center;
+}
+
+.multiple-choice-section h3 {
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+  font-size: 1.25rem;
+}
+
+.choice-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.choice-button {
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.5rem;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.choice-button:hover {
+  background: var(--bg-hover);
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.choice-button:active {
+  transform: translateY(0);
+}
+
+.choice-button.correct {
+  background: var(--success-color);
+  border-color: var(--success-color);
+  color: white;
+}
+
+.choice-button.incorrect {
+  background: var(--danger-color);
+  border-color: var(--danger-color);
+  color: white;
+}
+
+.choice-button.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.choice-button.disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
 @media (max-width: 768px) {
+  .choice-buttons {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+  
+  .choice-button {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+  
   .color-bar-canvas {
     height: 80px;
   }
