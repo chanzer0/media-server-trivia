@@ -29,9 +29,10 @@ function initLayoutControls() {
     });
   }
 
-  // Load saved theme preference
-  const savedDarkMode = localStorage.getItem('darkMode') === '1';
-  setDarkMode(savedDarkMode);
+  // Load saved theme preference or default to dark mode
+  const savedDarkMode = localStorage.getItem('darkMode');
+  const isDarkMode = savedDarkMode === null ? true : savedDarkMode === '1';
+  setDarkMode(isDarkMode);
 
   // Mobile menu toggle
   if (mobileMenuToggle && navMenu) {
