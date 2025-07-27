@@ -10,3 +10,4 @@ app\__pycache__/
 *.pywz
 *.pyzw
 *.pyzwz
+.claude*
