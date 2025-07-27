@@ -27,6 +27,10 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
     def poster_game_page():
         return render_template("game_poster.html")
 
+    @bp.route("/game/frame")
+    def frame_game_page():
+        return render_template("game_frame.html")
+
     @bp.route("/api/trivia")
     def api_trivia():
         q = trivia.random_question()
@@ -63,6 +67,37 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
             return jsonify({"error": "No media found"}), 404
         return jsonify(q)
 
+    @bp.route("/api/trivia/frame")
+    def api_trivia_frame():
+        try:
+            result = trivia.frame_colors()
+            if "error" in result:
+                return jsonify(result), 404
+            return jsonify(result)
+        except Exception as e:
+            print(f"Error in frame trivia API: {e}")
+            return jsonify({"error": str(e)}), 500
+
+    @bp.route("/api/trivia/frame/progress/<session_id>")
+    def api_frame_progress(session_id):
+        try:
+            progress = trivia.get_session_progress(session_id)
+            if not progress:
+                return jsonify({"error": "Session not found"}), 404
+            return jsonify(progress)
+        except Exception as e:
+            print(f"Error getting progress: {e}")
+            return jsonify({"error": str(e)}), 500
+
+    @bp.route("/api/trivia/frame/cancel/<session_id>", methods=["POST"])
+    def api_frame_cancel(session_id):
+        try:
+            trivia.cleanup_session(session_id)
+            return jsonify({"status": "cancelled"})
+        except Exception as e:
+            print(f"Error cancelling session: {e}")
+            return jsonify({"error": str(e)}), 500
+
     @bp.route("/api/library")
     def api_library():
         movies = []
@@ -80,5 +115,41 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
                 shows.append(s.title)
         
         return jsonify({"movies": movies, "shows": shows})
+
+    @bp.route("/api/cache/clear", methods=["POST"])
+    def api_clear_cache():
+        try:
+            cache_count = len(list(trivia.cache_dir.glob("*.json")))
+            trivia._cleanup_old_cache_files(max_age_days=0)  # Clear all cache files
+            return jsonify({"status": "success", "message": f"Cleared {cache_count} cache files"})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @bp.route("/api/cache/info")
+    def api_cache_info():
+        try:
+            cache_files = list(trivia.cache_dir.glob("*.json"))
+            total_size = sum(f.stat().st_size for f in cache_files)
+            return jsonify({
+                "cache_count": len(cache_files),
+                "total_size_mb": round(total_size / (1024 * 1024), 2),
+                "cache_dir": str(trivia.cache_dir)
+            })
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @bp.route("/api/performance/opencv")
+    def api_opencv_performance():
+        try:
+            import cv2
+            info = {
+                "opencv_version": cv2.__version__,
+                "optimizations_enabled": cv2.useOptimized(),
+                "cpu_threads": cv2.getNumberOfCPUs(),
+                "build_info": cv2.getBuildInformation()
+            }
+            return jsonify(info)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
     app.register_blueprint(bp)

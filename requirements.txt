@@ -2,4 +2,7 @@ Flask
 plexapi
 python-dotenv
 themoviedb
+opencv-python
+numpy
+Pillow
 

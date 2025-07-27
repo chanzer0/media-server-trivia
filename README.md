@@ -9,12 +9,14 @@ A template for an Unraid-ready application that turns your Plex library into a t
   - Cast Reveal Game
   - Guess the Release Year
   - Poster Reveal Challenge
+  - Frame Color Challenge (analyzes actual video frames)
 - Dockerized for easy deployment on Unraid or any Docker host
 - Retrieves additional metadata from TMDb using the TMDb GUIDs stored in your Plex library
 
 ## Requirements
 - Python 3.11 (for development) or Docker
 - A Plex API token and the base URL of your Plex server
+- A TMDb API key
 
 ## Configuration
 The application reads a few environment variables:
@@ -24,8 +26,9 @@ PLEX_BASE_URL=<http://your.plex.ip:port>
 PLEX_TOKEN=<your_plex_token>
 HOST_PORT=<port_for_web_ui>
 TMDB_API_KEY=<your_tmdb_api_key>
+MEDIA_PATH=<path_to_your_media_files>
 ```
-These can be supplied in `docker-compose.yml` or directly in your environment. `HOST_PORT` controls which port the web interface listens on.
+These can be supplied in `docker-compose.yml` or directly in your environment. `HOST_PORT` controls which port the web interface listens on. `MEDIA_PATH` should point to the same media directory that your Plex server uses (required for Frame Color Challenge).
 
 ## Running with Docker
 
@@ -36,8 +39,26 @@ starts the container with your configured environment variables.
 docker compose up
 ```
 
-Ensure that `PLEX_BASE_URL`, `PLEX_TOKEN`, `HOST_PORT` and `TMDB_API_KEY` are set in your environment or an `.env` file before starting the stack.
+Ensure that `PLEX_BASE_URL`, `PLEX_TOKEN`, `HOST_PORT`, `TMDB_API_KEY`, and `MEDIA_PATH` are set in your environment or an `.env` file before starting the stack.
 The web interface will be available on `http://localhost:${HOST_PORT}`. By default this is `5054`.
+
+**Important for Frame Color Challenge:** The `MEDIA_PATH` environment variable must point to the same media directory that your Plex server uses. The container will mount this directory as a read-only volume to access video files for frame analysis.
+
+### Development vs Production Setup
+
+**Development (Windows PC accessing NAS):**
+```bash
+MEDIA_PATH=\\TOWER\data\media  # Windows network share
+```
+
+**Production (Running on NAS/Docker):**
+```bash
+MEDIA_PATH=/mnt/user/media     # Unraid
+MEDIA_PATH=/data/media         # Generic Docker
+MEDIA_PATH=/volume1/media      # Synology
+```
+
+The application automatically detects Windows vs Linux environments and maps paths accordingly.
 
 ## Docker Image
 

@@ -5,8 +5,11 @@ services:
     build: .
     ports:
       - "${HOST_PORT:-5054}:${HOST_PORT:-5054}"
+    volumes:
+      - "${MEDIA_PATH:-/data/media}:/data/media:ro"
     environment:
       - PLEX_BASE_URL=${PLEX_BASE_URL}
       - PLEX_TOKEN=${PLEX_TOKEN}
       - TMDB_API_KEY=${TMDB_API_KEY}
       - FLASK_RUN_PORT=${HOST_PORT:-5054}
+      - MEDIA_PATH=${MEDIA_PATH:-/data/media}

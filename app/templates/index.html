@@ -56,9 +56,27 @@
     <h3 class="game-title">Poster Reveal</h3>
     <p class="game-description">
       Can you identify a movie from its poster? 
-      The image gets clearer with each round!
+      Scratch off the silver surface to reveal clues!
     </p>
     <a href="{{ url_for('main.poster_game_page') }}" class="btn btn-primary">
+      Play Now
+      <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 17l5-5-5-5v10z"/>
+      </svg>
+    </a>
+  </div>
+
+  <!-- Frame Color Challenge -->
+  <div class="game-card">
+    <svg class="game-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/>
+    </svg>
+    <h3 class="game-title">Frame Colors</h3>
+    <p class="game-description">
+      Identify movies from their unique color timeline. 
+      Every frame tells part of the story!
+    </p>
+    <a href="{{ url_for('main.frame_game_page') }}" class="btn btn-primary">
       Play Now
       <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M10 17l5-5-5-5v10z"/>
