@@ -57,8 +57,20 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
 
     @bp.route("/api/library")
     def api_library():
-        movies = [m.title for m in plex_service.get_movies()]
-        shows = [s.title for s in plex_service.get_shows()]
+        movies = []
+        for m in plex_service.get_movies():
+            if hasattr(m, 'year') and m.year:
+                movies.append(f"{m.title} ({m.year})")
+            else:
+                movies.append(m.title)
+        
+        shows = []
+        for s in plex_service.get_shows():
+            if hasattr(s, 'year') and s.year:
+                shows.append(f"{s.title} ({s.year})")
+            else:
+                shows.append(s.title)
+        
         return jsonify({"movies": movies, "shows": shows})
 
     app.register_blueprint(bp)

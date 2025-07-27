@@ -17,14 +17,15 @@
 
   <!-- Input Section -->
   <div class="input-group">
-    <input 
-      id="guessInput" 
-      list="titleList" 
-      class="form-control" 
-      placeholder="Enter movie title..."
-      autocomplete="off"
-    >
-    <datalist id="titleList"></datalist>
+    <div class="input-container">
+      <input 
+        id="guessInput" 
+        class="form-control" 
+        placeholder="Enter movie title..."
+        autocomplete="off"
+      >
+      <div id="customDropdown" class="custom-dropdown"></div>
+    </div>
     <button class="btn btn-primary" id="guessBtn">
       Submit Guess
       <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
