@@ -42,6 +42,10 @@ app/
 
 ## Development Guidelines
 
+### Implementations
+- **Brevity**: Do not introduce more code than necessary.
+- **Efficiency**: Use the most efficient code possible.
+
 ### Code Style
 - **Type hints**: Use modern Python typing (`str | None` not `Union[str, None]`)
 - **Error handling**: Graceful degradation, print statements for debugging
