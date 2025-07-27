@@ -32,7 +32,12 @@ document.addEventListener('DOMContentLoaded', () => {
     for (let i = 0; i < 7; i++) {
       const d = document.createElement('div');
       d.className = 'cast-circle';
-      d.textContent = i === 0 && data.cast.length > 0 ? data.cast[0] : '?';
+      if (i === 0 && data.cast.length > 0) {
+        d.textContent = data.cast[0];
+        d.classList.add('revealed');
+      } else {
+        d.textContent = '?';
+      }
       icons.appendChild(d);
     }
     updateProgress();
@@ -42,15 +47,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const guess = guessInput.value.trim().toLowerCase();
     if (!data) return;
     if (guess === data.title.toLowerCase()) {
-      result.innerHTML = `<div class='alert alert-success'>Correct! It was ${data.title}</div>`;
+      result.innerHTML = `<div class='result success'>🎉 Correct! It was "${data.title}"</div>`;
       guessBtn.disabled = true;
+      guessBtn.innerHTML = '<span class="loading"></span> Loading...';
     } else {
       round++;
       if (round <= data.cast.length) {
-        document.querySelectorAll('.cast-circle')[round-1].textContent = data.cast[round-1];
-        result.innerHTML = `<div class='alert alert-danger'>Try again!</div>`;
+        const castCircles = document.querySelectorAll('.cast-circle');
+        castCircles[round-1].textContent = data.cast[round-1];
+        castCircles[round-1].classList.add('revealed');
+        result.innerHTML = `<div class='result error'>❌ Try again! ${7 - round + 1} hints remaining</div>`;
       } else {
-        result.innerHTML = `<div class='alert alert-info'>Out of guesses. It was ${data.title}</div>`;
+        result.innerHTML = `<div class='result error'>😔 Out of guesses! It was "${data.title}"</div>`;
         guessBtn.disabled = true;
       }
       updateProgress();

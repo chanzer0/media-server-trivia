@@ -1,18 +1,51 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="game-container text-center">
-  <h2 class="mb-4">Cast Reveal</h2>
-  <div class="progress mb-4" style="height:8px;">
-    <div id="roundProgress" class="progress-bar" role="progressbar" aria-valuenow="1" aria-valuemin="0" aria-valuemax="7" style="width:14%"></div>
+<div class="game-container">
+  <div class="game-header">
+    <h2 class="game-title-page">Cast Reveal Challenge</h2>
+    <p class="hero-subtitle">Guess the movie as cast members are revealed</p>
   </div>
+
+  <!-- Progress Bar -->
+  <div class="progress-container">
+    <div id="roundProgress" class="progress-bar" style="width: 14.28%"></div>
+  </div>
+
+  <!-- Cast Icons Grid -->
   <div id="castIcons" class="cast-icons"></div>
-  <div class="input-group mb-3">
-    <input id="guessInput" list="titleList" class="form-control" placeholder="Search titles">
+
+  <!-- Input Section -->
+  <div class="input-group">
+    <input 
+      id="guessInput" 
+      list="titleList" 
+      class="form-control" 
+      placeholder="Enter movie title..."
+      autocomplete="off"
+    >
     <datalist id="titleList"></datalist>
-    <button class="btn btn-primary" id="guessBtn">Guess</button>
+    <button class="btn btn-primary" id="guessBtn">
+      Submit Guess
+      <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
+      </svg>
+    </button>
   </div>
-  <div id="result" class="mt-3"></div>
+
+  <!-- Result Display -->
+  <div id="result"></div>
+
+  <!-- Game Controls -->
+  <div class="game-controls mt-4 text-center">
+    <button class="btn btn-secondary" onclick="location.reload()">
+      <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+      </svg>
+      New Game
+    </button>
+  </div>
 </div>
+
 <script src="{{ url_for('static', filename='cast.js') }}"></script>
 {% endblock %}

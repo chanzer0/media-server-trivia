@@ -3,40 +3,52 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Plex Trivia</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Media Server Trivia</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   </head>
   <body>
-    <div class="container-fluid">
-      <div class="row flex-nowrap">
-        <aside class="sidebar col-12 col-md-3 col-lg-2 p-3 d-flex flex-column">
-          <button id="toggleSidebar" class="btn btn-outline-secondary mb-3 align-self-end">&#9776;</button>
-          <div class="text-center mb-4">
-            <a href="{{ url_for('main.index') }}" class="text-decoration-none">
-              <h5 class="fw-bold">Media Library Trivia</h5>
-            </a>
-          </div>
-          <h6 class="text-uppercase text-muted">Categories</h6>
-          <ul class="nav flex-column">
-            <li class="nav-item"><a class="nav-link" href="#">Movie Trivia</a></li>
-            <li class="nav-item"><a class="nav-link" href="#">TV Trivia</a></li>
-            <li class="nav-item"><a class="nav-link" href="#">Miscellaneous</a></li>
-          </ul>
-          <div class="sidebar-bottom mt-auto pt-3">
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" id="toggleDark">
-              <label class="form-check-label" for="toggleDark">Dark Mode</label>
-            </div>
-          </div>
-        </aside>
-        <main class="col py-4">
-          {% block content %}{% endblock %}
-        </main>
-      </div>
+    <div class="app-container">
+      <!-- Modern Header -->
+      <header class="app-header">
+        <div class="header-content">
+          <a href="{{ url_for('main.index') }}" class="app-logo">
+            <svg class="logo-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+            <span>Media Trivia</span>
+          </a>
+          
+          <nav class="nav-menu">
+            <a href="{{ url_for('main.index') }}" class="nav-link active">Home</a>
+            <a href="{{ url_for('main.cast_game_page') }}" class="nav-link">Cast Game</a>
+            <a href="{{ url_for('main.year_game_page') }}" class="nav-link">Year Game</a>
+            <a href="{{ url_for('main.poster_game_page') }}" class="nav-link">Poster Game</a>
+            
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">
+              <svg class="theme-icon sun-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 17.5a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11zm0-1.5a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0-12.5c.414 0 .75-.336.75-.75V1c0-.414-.336-.75-.75-.75s-.75.336-.75.75v1.75c0 .414.336.75.75.75zm0 19c.414 0 .75-.336.75-.75V23c0-.414-.336-.75-.75-.75s-.75.336-.75.75v1.75c0 .414.336.75.75.75zm8.25-9.75c.414 0 .75-.336.75-.75s-.336-.75-.75-.75h-1.75c-.414 0-.75.336-.75.75s.336.75.75.75h1.75zm-16.5 0c.414 0 .75-.336.75-.75s-.336-.75-.75-.75H1c-.414 0-.75.336-.75.75s.336.75.75.75h1.75zm14.67-6.17c.293-.293.293-.768 0-1.06l-1.24-1.24c-.293-.293-.768-.293-1.06 0-.293.293-.293.768 0 1.06l1.24 1.24c.293.293.768.293 1.06 0zm-12.84 12.84c.293-.293.293-.768 0-1.06l-1.24-1.24c-.293-.293-.768-.293-1.06 0-.293.293-.293.768 0 1.06l1.24 1.24c.293.293.768.293 1.06 0zm0-12.84c.293.293.768.293 1.06 0 .293-.293.293-.768 0-1.06l-1.24-1.24c-.293-.293-.768-.293-1.06 0-.293.293-.293.768 0 1.06l1.24 1.24zm12.84 12.84c.293.293.768.293 1.06 0 .293-.293.293-.768 0-1.06l-1.24-1.24c-.293-.293-.768-.293-1.06 0-.293.293-.293.768 0 1.06l1.24 1.24z"/>
+              </svg>
+              <svg class="theme-icon moon-icon hidden" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>
+              </svg>
+            </button>
+          </nav>
+          
+          <!-- Mobile menu toggle -->
+          <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main content area -->
+      <main class="main-content">
+        {% block content %}{% endblock %}
+      </main>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
     <script src="{{ url_for('static', filename='base.js') }}"></script>
   </body>
 </html>
-

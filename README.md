@@ -55,6 +55,21 @@ The image expects the same environment variables as the compose file.
 
 Install dependencies and run the Flask development server:
 
+### Option 1: Using run.py (Recommended)
+
+```
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+export PLEX_BASE_URL=http://your.plex.ip:port
+export PLEX_TOKEN=your_token
+export TMDB_API_KEY=your_tmdb_api_key
+python run.py
+```
+
+The app will run on http://localhost:5054 by default. You can change the port by setting `FLASK_RUN_PORT` environment variable.
+
+### Option 2: Using Flask CLI
 
 ```
 python -m venv venv

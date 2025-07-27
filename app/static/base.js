@@ -1,30 +1,77 @@
-// Controls sidebar collapse and dark mode toggle
+// Modern UI controls and navigation
 function initLayoutControls() {
-  const sidebar = document.querySelector('.sidebar');
-  const toggleSidebar = document.getElementById('toggleSidebar');
-  const toggleDark = document.getElementById('toggleDark');
+  const themeToggle = document.getElementById('themeToggle');
+  const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+  const navMenu = document.querySelector('.nav-menu');
   const body = document.body;
+  const sunIcon = document.querySelector('.sun-icon');
+  const moonIcon = document.querySelector('.moon-icon');
 
-  toggleSidebar.addEventListener('click', () => {
-    sidebar.classList.toggle('collapsed');
-  });
-
-  function setDark(enabled) {
+  // Theme toggle functionality
+  function setDarkMode(enabled) {
     body.classList.toggle('dark-mode', enabled);
     localStorage.setItem('darkMode', enabled ? '1' : '0');
-    toggleDark.checked = enabled;
+    
+    // Toggle icons
+    if (enabled) {
+      sunIcon.classList.add('hidden');
+      moonIcon.classList.remove('hidden');
+    } else {
+      sunIcon.classList.remove('hidden');
+      moonIcon.classList.add('hidden');
+    }
   }
 
-  toggleDark.addEventListener('change', () => {
-    setDark(toggleDark.checked);
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      const isDark = body.classList.contains('dark-mode');
+      setDarkMode(!isDark);
+    });
+  }
+
+  // Load saved theme preference
+  const savedDarkMode = localStorage.getItem('darkMode') === '1';
+  setDarkMode(savedDarkMode);
+
+  // Mobile menu toggle
+  if (mobileMenuToggle && navMenu) {
+    mobileMenuToggle.addEventListener('click', () => {
+      navMenu.classList.toggle('active');
+    });
+
+    // Close mobile menu when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!mobileMenuToggle.contains(e.target) && !navMenu.contains(e.target)) {
+        navMenu.classList.remove('active');
+      }
+    });
+  }
+
+  // Active navigation highlighting
+  const currentPath = window.location.pathname;
+  const navLinks = document.querySelectorAll('.nav-link');
+  
+  navLinks.forEach(link => {
+    link.classList.remove('active');
+    if (link.getAttribute('href') === currentPath) {
+      link.classList.add('active');
+    }
   });
 
-  // load saved mode
-  if (localStorage.getItem('darkMode') === '1') {
-    setDark(true);
-  } else {
-    setDark(false);
-  }
+  // Add smooth page transitions
+  document.addEventListener('click', (e) => {
+    if (e.target.matches('a[href^="/"]')) {
+      const link = e.target;
+      const href = link.getAttribute('href');
+      
+      // Skip if it's the current page
+      if (href === currentPath) {
+        e.preventDefault();
+        return;
+      }
+    }
+  });
 }
 
+// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', initLayoutControls);
