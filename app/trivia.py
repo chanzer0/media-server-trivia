@@ -81,16 +81,58 @@ class TriviaEngine:
 
     def guess_year(self):
         """Return the title and year for a random movie."""
+        print("guess_year() called")
         movie = self._random_movie()
         if not movie:
+            print("No movie returned from _random_movie()")
             return None
-        tmdb = self._get_tmdb_details(movie)
-        return {
+        
+        print(f"Selected movie: {movie.title}")
+        print(f"Movie year: {getattr(movie, 'year', 'No year attribute')}")
+        print(f"Movie summary length: {len(getattr(movie, 'summary', '')) if hasattr(movie, 'summary') else 'No summary'}")
+        
+        # Get TMDb ID first to get cast with photos
+        tmdb_id = None
+        for guid in getattr(movie, "guids", []):
+            try:
+                gid = getattr(guid, "id", "")
+                if isinstance(gid, str) and gid.startswith("tmdb://"):
+                    tmdb_id = int(gid.split("tmdb://", 1)[1])
+                    break
+            except Exception:
+                continue
+        
+        # Try to get cast with photos from TMDb
+        cast_with_photos = []
+        if tmdb_id and self.tmdb:
+            cast_with_photos = self.tmdb.get_movie_cast(tmdb_id) or []
+        
+        # Fallback to Plex cast data if TMDb not available
+        if not cast_with_photos:
+            try:
+                cast_names = [actor.tag for actor in movie.actors][:4]
+                cast_with_photos = [{"name": name, "profile_path": None} for name in cast_names]
+            except Exception:
+                cast_with_photos = []
+        
+        try:
+            tmdb = self._get_tmdb_details(movie)
+            print(f"TMDb details retrieved: {bool(tmdb)}")
+        except Exception as e:
+            print(f"Error getting TMDb details: {e}")
+            tmdb = None
+        
+        result = {
             "title": movie.title,
             "year": movie.year,
-            "summary": movie.summary,
+            "summary": getattr(movie, 'summary', 'No summary available'),
+            "cast": cast_with_photos[:4],  # Limit to top 4 for year game
             "tmdb": tmdb,
         }
+        
+        print(f"Cast data: {len(cast_with_photos)} actors")
+        print(f"Returning result: {result}")
+        return result
 
     def poster_reveal(self):
         """Return poster and summary information for a random movie."""

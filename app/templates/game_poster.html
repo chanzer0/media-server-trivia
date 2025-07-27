@@ -7,21 +7,27 @@
     <p class="hero-subtitle">Can you identify the movie from its poster?</p>
   </div>
 
-  <!-- Poster Display -->
-  <div class="poster-container">
-    <img id="posterImg" class="poster-image blur-heavy" alt="Movie poster" />
+  <!-- Scratch-off Poster Display -->
+  <div class="scratch-poster-container">
+    <div class="scratch-poster-wrapper">
+      <img id="posterImg" class="poster-image" alt="Movie poster" />
+      <div id="scratchOverlay" class="scratch-overlay">
+        <div class="scratch-surface"></div>
+        <svg class="scratch-holes" width="100%" height="100%">
+          <!-- Scratch holes will be dynamically added here -->
+        </svg>
+      </div>
+    </div>
   </div>
 
-  <!-- Summary Section -->
-  <div class="movie-summary text-center mb-4" id="posterSummary"></div>
-
-  <!-- Reveal Button -->
+  <!-- Scratch Button -->
   <div class="text-center mb-4">
-    <button id="posterReveal" class="btn btn-secondary">
+    <button id="scratchBtn" class="btn btn-secondary">
       <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+        <path d="M7 14c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zM20.71 4.63l-1.34-1.34c-.39-.39-1.02-.39-1.41 0L9 12.25 11.75 15l8.96-8.96c.39-.39.39-1.02 0-1.41z"/>
       </svg>
-      Reveal More
+      Scratch Off
+      <span id="scratchCount" class="scratch-counter">(4 left)</span>
     </button>
   </div>
 

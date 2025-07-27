@@ -43,10 +43,18 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
 
     @bp.route("/api/trivia/year")
     def api_trivia_year():
-        q = trivia.guess_year()
-        if not q:
-            return jsonify({"error": "No media found"}), 404
-        return jsonify(q)
+        try:
+            print("Year trivia API called")
+            q = trivia.guess_year()
+            print(f"Trivia engine returned: {q}")
+            if not q:
+                print("No media found from trivia engine")
+                return jsonify({"error": "No media found"}), 404
+            print(f"Returning JSON: {q}")
+            return jsonify(q)
+        except Exception as e:
+            print(f"Error in year trivia API: {e}")
+            return jsonify({"error": str(e)}), 500
 
     @bp.route("/api/trivia/poster")
     def api_trivia_poster():

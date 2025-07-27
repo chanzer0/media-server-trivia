@@ -594,33 +594,139 @@ datalist {
   border: 2px solid var(--danger-color);
 }
 
-/* Poster Reveal */
-.poster-container {
+/* Scratch-off Poster Reveal */
+.scratch-poster-container {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto 2rem;
+}
+
+.scratch-poster-wrapper {
   position: relative;
   width: 100%;
   max-width: 400px;
-  margin: 0 auto 2rem;
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-xl);
+  background: var(--bg-card);
 }
 
 .poster-image {
   width: 100%;
+  height: auto;
   display: block;
-  transition: filter var(--transition-slow);
 }
 
-.poster-image.blur-heavy {
-  filter: blur(20px) brightness(0.7);
+.scratch-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
 }
 
-.poster-image.blur-medium {
-  filter: blur(10px) brightness(0.85);
+.scratch-surface {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, 
+    #c0c0c0 0%, 
+    #e8e8e8 25%, 
+    #f5f5f5 50%, 
+    #e8e8e8 75%, 
+    #c0c0c0 100%
+  );
+  opacity: 1;
+  transition: opacity var(--transition-slow);
 }
 
-.poster-image.blur-light {
-  filter: blur(5px) brightness(0.95);
+.scratch-surface::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.1) 0px,
+    rgba(255, 255, 255, 0.1) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+  animation: scratch-shimmer 3s ease-in-out infinite;
+}
+
+.scratch-holes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+}
+
+.scratch-hole {
+  fill: transparent;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.scratch-counter {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-left: 0.5rem;
+}
+
+.scratch-btn-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Scratch-off animations */
+@keyframes scratch-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes scratch-reveal {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes claw-scratch {
+  from {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    opacity: 0;
+  }
+  to {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+.scratch-hole-appear {
+  animation: claw-scratch 0.8s ease-out;
+}
+
+/* Enhanced claw scratch styling */
+.mask-hole {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 /* Stats Display */

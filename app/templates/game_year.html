@@ -11,6 +11,12 @@
   <div class="movie-info-card">
     <h3 id="movieTitle" class="movie-title mb-3">Loading...</h3>
     <div id="movieSummary" class="movie-summary mb-4"></div>
+    
+    <!-- Cast Section -->
+    <div id="movieCastSection" class="movie-cast-section" style="display: none;">
+      <h4 class="cast-section-title">Starring</h4>
+      <div id="movieCast" class="movie-cast-grid"></div>
+    </div>
   </div>
 
   <!-- Year Input Section -->
@@ -74,6 +80,72 @@
   line-height: 1.6;
   max-width: 700px;
   margin: 0 auto;
+}
+
+.movie-cast-section {
+  margin-top: 2rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 2rem;
+}
+
+.cast-section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.movie-cast-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 1rem;
+  justify-items: center;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.movie-cast-member {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.movie-cast-photo {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 0.5rem;
+  box-shadow: var(--shadow-sm);
+  border: 2px solid var(--border-color);
+}
+
+.movie-cast-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+  max-width: 90px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.movie-cast-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-hover));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+  border: 2px solid var(--border-color);
 }
 
 #yearQuestion {
