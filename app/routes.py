@@ -70,8 +70,24 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
     @bp.route("/api/trivia/frame")
     def api_trivia_frame():
         try:
+            print("Frame trivia API called")
+            
+            # Check if Plex is connected
+            if not plex_service.server:
+                print("Plex server not connected")
+                return jsonify({"error": "Plex server not connected"}), 500
+            
+            # Check if there are movies available
+            movies = plex_service.get_movies()
+            print(f"Found {len(movies)} movies in library")
+            if not movies:
+                print("No movies found in Plex library")
+                return jsonify({"error": "No movies found in Plex library"}), 404
+            
             result = trivia.frame_colors()
+            print(f"Trivia engine returned: {result}")
             if "error" in result:
+                print(f"Frame colors error: {result['error']}")
                 return jsonify(result), 404
             return jsonify(result)
         except Exception as e:

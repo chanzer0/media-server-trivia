@@ -42,23 +42,97 @@ docker compose up
 Ensure that `PLEX_BASE_URL`, `PLEX_TOKEN`, `HOST_PORT`, `TMDB_API_KEY`, and `MEDIA_PATH` are set in your environment or an `.env` file before starting the stack.
 The web interface will be available on `http://localhost:${HOST_PORT}`. By default this is `5054`.
 
-**Important for Frame Color Challenge:** The `MEDIA_PATH` environment variable must point to the same media directory that your Plex server uses. The container will mount this directory as a read-only volume to access video files for frame analysis.
+**Important for Frame Color Challenge:** The application needs access to your media files for video frame analysis. Setup varies by platform:
 
-### Development vs Production Setup
+### Unraid Setup (Recommended Method)
 
-**Development (Windows PC accessing NAS):**
+#### Option 1: Use Unraid Template (Easiest)
+1. In Unraid, go to **Docker** tab → **Add Container**
+2. In the template repository URL field, add:
+   ```
+   https://raw.githubusercontent.com/chanzer0/media-server-trivia/main/unraid-template.xml
+   ```
+3. Search for "media-server-trivia" and click the template
+4. Configure the required settings:
+   - **Plex Base URL:** `http://YOUR_UNRAID_IP:32400`
+   - **Plex Token:** Your Plex authentication token
+   - **Media Directory:** Path to your media files (usually `/mnt/user/media`)
+   - **TMDb API Key:** (Optional) For enhanced metadata
+
+#### Option 2: Manual Docker Setup
+**DO NOT** set `MEDIA_PATH` as an environment variable in Unraid. Instead:
+
+1. In the Unraid Docker UI, add a **Volume Mapping**:
+   - **Container Path:** `/data/media`
+   - **Host Path:** `/mnt/user/media` (or your actual media path)
+   - **Access Mode:** Read Only
+
+2. Your media structure should match your Plex library structure:
+   ```
+   /mnt/user/media/
+   ├── movies/
+   │   ├── Movie Name (Year)/
+   │   │   └── Movie Name (Year).mkv
+   └── tv/
+       └── Show Name/
+           └── Season 01/
+               └── Episode.mkv
+   ```
+
+### Docker Compose Setup
+
+For docker-compose users, ensure your media path is properly mounted:
+```yaml
+volumes:
+  - "/your/host/media/path:/data/media:ro"
+environment:
+  - MEDIA_PATH=/data/media  # Container path, not host path
+```
+
+### Development Setup (Windows PC accessing NAS)
+
 ```bash
 MEDIA_PATH=\\TOWER\data\media  # Windows network share
 ```
 
-**Production (Running on NAS/Docker):**
-```bash
-MEDIA_PATH=/mnt/user/media     # Unraid
-MEDIA_PATH=/data/media         # Generic Docker
-MEDIA_PATH=/volume1/media      # Synology
-```
+### Other NAS Platforms
 
-The application automatically detects Windows vs Linux environments and maps paths accordingly.
+- **Synology:** Mount `/volume1/media` to `/data/media` in container
+- **Generic Docker:** Mount your media directory to `/data/media` in container
+
+The application automatically detects the environment and tries multiple path patterns to locate your media files.
+
+### Troubleshooting Media Access
+
+If you're getting "Could not find video file" errors:
+
+1. **Check Docker logs** for detailed path information:
+   ```bash
+   docker logs your-container-name
+   ```
+
+2. **Verify volume mapping** in Docker:
+   - Container path should be `/data/media`
+   - Host path should point to your actual media directory
+   - Access mode should be "Read Only"
+
+3. **Test file access** from within the container:
+   ```bash
+   docker exec -it your-container-name ls -la /data/media
+   ```
+
+4. **Common Unraid media paths:**
+   - `/mnt/user/media` (most common)
+   - `/mnt/disk1/media`
+   - `/mnt/cache/media`
+
+5. **Path structure verification:** Make sure your media follows this structure:
+   ```
+   Host: /mnt/user/media/movies/Movie (Year)/Movie.mkv
+   Container: /data/media/movies/Movie (Year)/Movie.mkv
+   ```
+
+The application will show detailed path checking in the Docker logs to help diagnose issues.
 
 ## Docker Image
 

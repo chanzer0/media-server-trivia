@@ -333,16 +333,26 @@ class TriviaEngine:
                         for part in media.parts:
                             if hasattr(part, "file"):
                                 file_path = part.file
+                                print(f"Original Plex file path: {file_path}")
                                 
                                 # Try the original path first
                                 if os.path.exists(file_path):
+                                    print(f"Found file at original path: {file_path}")
                                     return file_path
                                 
                                 # Try alternative path mappings for Docker/container environments
+                                print(f"Original path not found, trying mapped paths...")
                                 mapped_paths = self._get_mapped_paths(file_path)
+                                print(f"Trying {len(mapped_paths)} mapped paths: {mapped_paths}")
+                                
                                 for mapped_path in mapped_paths:
+                                    print(f"Checking: {mapped_path}")
                                     if os.path.exists(mapped_path):
+                                        print(f"Found file at mapped path: {mapped_path}")
                                         return mapped_path
+                                
+                                print(f"No valid file path found for {movie.title}")
+            print(f"No media parts found for {movie.title}")
             return None
         except Exception as e:
             print(f"Error getting video file path: {e}")
