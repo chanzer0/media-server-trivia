@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 from themoviedb import TMDb
+import logging
+from .tmdb_cache import TMDbCache
+
+logger = logging.getLogger(__name__)
 
 
 class TMDbService:
-    """Simple wrapper around the TMDb API client."""
+    """Simple wrapper around the TMDb API client with caching."""
 
     def __init__(self, api_key: str | None):
         self.api_key = api_key
         self.client = TMDb(key=api_key) if api_key else None
         self._config = None
+        self.cache = TMDbCache()
 
     def _get_configuration(self):
         """Get TMDb configuration with image base URLs and sizes."""
@@ -25,7 +30,7 @@ class TMDbService:
                     }
                 }
             except Exception as e:
-                print(f"Failed to fetch TMDb configuration: {e}")
+                logger.error(f"Failed to fetch TMDb configuration: {e}")
                 # Fallback to default configuration
                 self._config = {
                     "images": {
@@ -68,16 +73,33 @@ class TMDbService:
         """Return details for a movie by TMDb id."""
         if not self.client:
             return None
+        
+        # Check cache first
+        cached_data = self.cache.get_movie_details(movie_id)
+        if cached_data is not None:
+            return cached_data
+        
+        # Fetch from API if not cached
         try:
-            return self.client.movie(movie_id).details()
+            details = self.client.movie(movie_id).details()
+            # Cache the result
+            self.cache.set_movie_details(movie_id, details)
+            return details
         except Exception as e:
-            print(f"Failed to fetch movie details: {e}")
+            logger.error(f"Failed to fetch movie details: {e}")
             return None
 
     def get_movie_cast(self, movie_id: int):
         """Return cast details with photos for a movie by TMDb id."""
         if not self.client:
             return None
+        
+        # Check cache first
+        cached_data = self.cache.get_movie_cast(movie_id)
+        if cached_data is not None:
+            return cached_data
+        
+        # Fetch from API if not cached
         try:
             credits = self.client.movie(movie_id).credits()
             cast_with_photos = []
@@ -98,9 +120,11 @@ class TMDbService:
 
                 cast_with_photos.append(actor_data)
 
+            # Cache the result
+            self.cache.set_movie_cast(movie_id, cast_with_photos)
             return cast_with_photos
         except Exception as e:
-            print(f"Failed to fetch movie cast: {e}")
+            logger.error(f"Failed to fetch movie cast: {e}")
             return None
 
     def search_movies(self, query: str):
@@ -111,5 +135,5 @@ class TMDbService:
             search_result = self.client.search().movies(query=query)
             return search_result.results if hasattr(search_result, 'results') else []
         except Exception as e:
-            print(f"Failed to search movies: {e}")
+            logger.error(f"Failed to search movies: {e}")
             return []

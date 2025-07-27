@@ -48,9 +48,12 @@ app/
 
 ### Code Style
 - **Type hints**: Use modern Python typing (`str | None` not `Union[str, None]`)
-- **Error handling**: Graceful degradation, print statements for debugging
+- **Error handling**: Use `@with_error_handling` decorator and `handle_trivia_response()` helper
+- **Logging**: Use Python `logger` instead of print statements
 - **No comments**: Code should be self-documenting
 - **Service pattern**: Dependency injection in routes
+- **Constants**: All magic numbers in `constants.py`
+- **Resource management**: Use context managers (e.g., `safe_video_capture()`)
 
 ### Environment Variables
 - `PLEX_BASE_URL`: Plex server URL
@@ -66,9 +69,14 @@ app/
 
 ### Computer Vision Features
 - **Frame extraction**: OpenCV with FFmpeg backend
-- **Caching system**: JSON cache in `cache/frame_data/` directory
-- **Session management**: Async processing with progress tracking
+- **Caching system**: 
+  - Frame data: JSON cache in `cache/frame_data/` (persists forever)
+  - TMDb data: JSON cache in `cache/tmdb_data/` (persists forever)
+  - Cache key based on file modification time for frames
+  - Cache invalidation only via manual API call
+- **Session management**: Async processing with progress tracking, proper thread cleanup
 - **Error suppression**: Comprehensive codec error filtering
+- **Resource safety**: Context managers for VideoCapture objects
 
 ### API Design
 - **RESTful endpoints**: `/api/trivia/*` for game data
@@ -119,9 +127,28 @@ app/
 - Debug logging shows path resolution attempts
 
 ### Cache Management
-- Automatic cleanup of old cache files
-- Cache invalidation based on file modification
-- Manual cache clearing via `/api/cache/clear`
+- **Persistence**: All cache files persist forever (no automatic cleanup)
+- **Frame cache**: Keyed by file path + size + mtime + sample rate
+- **TMDb cache**: Keyed by movie ID, stores API responses indefinitely
+- **Invalidation**: Frame cache auto-invalidates on file modification
+- **Manual clearing**: `/api/cache/clear` clears both frame and TMDb caches
+- **Cache info**: `/api/cache/info` shows cache statistics
+
+## Recent Refactoring (Phase 1 Complete)
+
+### Completed Improvements
+- ✅ **Resource leak fixes**: VideoCapture with context managers
+- ✅ **Thread cleanup**: Proper thread joining in session cleanup
+- ✅ **Error handling**: Standardized with decorators and helpers
+- ✅ **Logging**: Replaced print statements with logger
+- ✅ **Constants**: Magic numbers moved to `constants.py`
+- ✅ **Cache persistence**: Removed automatic cleanup per requirements
+
+### New Files Added
+- `app/utils.py`: Helper functions and decorators
+- `app/constants.py`: All magic numbers and configuration
+- `app/static/game-base.js`: Base class for frontend games
+- `app/tmdb_cache.py`: TMDb API response caching layer
 
 ## Testing Commands
 
@@ -138,8 +165,9 @@ docker exec -it container ls -la /data/media
 # View logs
 docker logs container-name
 
-# Clear cache
-curl -X POST http://localhost:5054/api/cache/clear
+# Cache management
+curl http://localhost:5054/api/cache/info          # View cache statistics
+curl -X POST http://localhost:5054/api/cache/clear # Clear all caches
 ```
 
 ## Performance Considerations

@@ -14,6 +14,9 @@ import logging
 logging.getLogger('libav').setLevel(logging.CRITICAL)
 logging.getLogger('ffmpeg').setLevel(logging.CRITICAL)
 
+# Setup logger for this module
+logger = logging.getLogger(__name__)
+
 # Set OpenCV log level to reduce noise (try different attribute names for compatibility)
 try:
     cv2.setLogLevel(cv2.LOG_LEVEL_ERROR)
@@ -44,6 +47,8 @@ class TriviaEngine:
 
     def _start_cleanup_timer(self):
         """Start a background timer to clean up stale sessions and cache."""
+        from .constants import SESSION_TIMEOUT_SECONDS, SESSION_CLEANUP_INTERVAL
+        
         def cleanup_stale_data():
             current_time = time.time()
             stale_sessions = []
@@ -51,26 +56,28 @@ class TriviaEngine:
             # Clean up stale sessions
             with self.session_lock:
                 for session_id, session in self.active_sessions.items():
-                    # Clean up sessions older than 10 minutes
-                    if current_time - session.get('created_at', 0) > 600:
+                    # Clean up sessions older than timeout
+                    if current_time - session.get('created_at', 0) > SESSION_TIMEOUT_SECONDS:
                         stale_sessions.append(session_id)
             
             for session_id in stale_sessions:
-                print(f"Cleaning up stale session: {session_id}")
+                logger.info(f"Cleaning up stale session: {session_id}")
                 self.cleanup_session(session_id)
             
-            # Clean up old cache files (older than 7 days)
-            self._cleanup_old_cache_files()
+            # Note: Cache files are now persistent - no automatic cleanup
+            # self._cleanup_old_cache_files()  # Removed per requirement
             
-            # Schedule next cleanup in 5 minutes
-            timer = threading.Timer(300, cleanup_stale_data)
-            timer.daemon = True
-            timer.start()
+            # Schedule next cleanup
+            if hasattr(self, '_cleanup_timer'):
+                self._cleanup_timer.cancel()
+            self._cleanup_timer = threading.Timer(SESSION_CLEANUP_INTERVAL, cleanup_stale_data)
+            self._cleanup_timer.daemon = True
+            self._cleanup_timer.start()
         
         # Start the first cleanup timer
-        timer = threading.Timer(300, cleanup_stale_data)
-        timer.daemon = True
-        timer.start()
+        self._cleanup_timer = threading.Timer(SESSION_CLEANUP_INTERVAL, cleanup_stale_data)
+        self._cleanup_timer.daemon = True
+        self._cleanup_timer.start()
 
     def _get_cache_key(self, video_path, sample_rate=200):
         """Generate a cache key based on video file path, size, and modification time."""
@@ -80,7 +87,7 @@ class TriviaEngine:
             cache_data = f"{video_path}:{stat.st_size}:{stat.st_mtime}:{sample_rate}"
             return hashlib.md5(cache_data.encode()).hexdigest()
         except Exception as e:
-            print(f"Error generating cache key: {e}")
+            logger.error(f"Error generating cache key: {e}")
             return None
 
     def _get_cached_frame_data(self, cache_key):
@@ -95,10 +102,10 @@ class TriviaEngine:
                 if cache_file.exists():
                     with open(cache_file, 'r') as f:
                         cached_data = json.load(f)
-                    print(f"Cache hit for key: {cache_key}")
+                    logger.debug(f"Cache hit for key: {cache_key}")
                     return cached_data
         except Exception as e:
-            print(f"Error reading cache file {cache_file}: {e}")
+            logger.error(f"Error reading cache file {cache_file}: {e}")
             # Remove corrupted cache file
             try:
                 cache_file.unlink()
@@ -118,26 +125,41 @@ class TriviaEngine:
             with self.cache_lock:
                 with open(cache_file, 'w') as f:
                     json.dump(frame_data, f, separators=(',', ':'))
-                print(f"Cached frame data with key: {cache_key}")
+                logger.debug(f"Cached frame data with key: {cache_key}")
         except Exception as e:
-            print(f"Error writing cache file {cache_file}: {e}")
+            logger.error(f"Error writing cache file {cache_file}: {e}")
 
     def _cleanup_old_cache_files(self, max_age_days=7):
-        """Remove cache files older than max_age_days."""
+        """Remove cache files older than max_age_days.
+        
+        Note: By default, cache files persist forever unless manually cleared.
+        This method is only called when explicitly requested (e.g., via API).
+        """
         try:
-            current_time = time.time()
-            max_age_seconds = max_age_days * 24 * 60 * 60
-            
-            with self.cache_lock:
-                for cache_file in self.cache_dir.glob("*.json"):
-                    try:
-                        if current_time - cache_file.stat().st_mtime > max_age_seconds:
+            # If max_age_days is 0, clear all cache files
+            if max_age_days == 0:
+                with self.cache_lock:
+                    for cache_file in self.cache_dir.glob("*.json"):
+                        try:
                             cache_file.unlink()
-                            print(f"Removed old cache file: {cache_file.name}")
-                    except Exception as e:
-                        print(f"Error removing cache file {cache_file}: {e}")
+                            logger.info(f"Removed cache file: {cache_file.name}")
+                        except Exception as e:
+                            logger.error(f"Error removing cache file {cache_file}: {e}")
+            else:
+                # Only remove files older than specified age
+                current_time = time.time()
+                max_age_seconds = max_age_days * 24 * 60 * 60
+                
+                with self.cache_lock:
+                    for cache_file in self.cache_dir.glob("*.json"):
+                        try:
+                            if current_time - cache_file.stat().st_mtime > max_age_seconds:
+                                cache_file.unlink()
+                                logger.info(f"Removed old cache file: {cache_file.name}")
+                        except Exception as e:
+                            logger.error(f"Error removing cache file {cache_file}: {e}")
         except Exception as e:
-            print(f"Error during cache cleanup: {e}")
+            logger.error(f"Error during cache cleanup: {e}")
 
     def _get_tmdb_details(self, movie):
         """Return TMDb metadata for the given Plex movie."""
@@ -333,29 +355,29 @@ class TriviaEngine:
                         for part in media.parts:
                             if hasattr(part, "file"):
                                 file_path = part.file
-                                print(f"Original Plex file path: {file_path}")
+                                logger.debug(f"Original Plex file path: {file_path}")
                                 
                                 # Try the original path first
                                 if os.path.exists(file_path):
-                                    print(f"Found file at original path: {file_path}")
+                                    logger.debug(f"Found file at original path: {file_path}")
                                     return file_path
                                 
                                 # Try alternative path mappings for Docker/container environments
-                                print(f"Original path not found, trying mapped paths...")
+                                logger.debug(f"Original path not found, trying mapped paths...")
                                 mapped_paths = self._get_mapped_paths(file_path)
-                                print(f"Trying {len(mapped_paths)} mapped paths: {mapped_paths}")
+                                logger.debug(f"Trying {len(mapped_paths)} mapped paths: {mapped_paths}")
                                 
                                 for mapped_path in mapped_paths:
-                                    print(f"Checking: {mapped_path}")
+                                    logger.debug(f"Checking: {mapped_path}")
                                     if os.path.exists(mapped_path):
-                                        print(f"Found file at mapped path: {mapped_path}")
+                                        logger.debug(f"Found file at mapped path: {mapped_path}")
                                         return mapped_path
                                 
-                                print(f"No valid file path found for {movie.title}")
-            print(f"No media parts found for {movie.title}")
+                                logger.warning(f"No valid file path found for {movie.title}")
+            logger.warning(f"No media parts found for {movie.title}")
             return None
         except Exception as e:
-            print(f"Error getting video file path: {e}")
+            logger.error(f"Error getting video file path: {e}")
             return None
 
     def _get_mapped_paths(self, original_path):
@@ -501,13 +523,21 @@ class TriviaEngine:
                 if session.get('cap'):
                     try:
                         session['cap'].release()
-                        print(f"Video capture closed for session {session_id}")
+                        logger.info(f"Video capture closed for session {session_id}")
                     except Exception as e:
-                        print(f"Error closing video capture: {e}")
+                        logger.error(f"Error closing video capture: {e}")
+                
+                # Wait for thread to complete if it exists
+                thread = session.get('thread')
+                if thread and thread.is_alive():
+                    logger.info(f"Waiting for thread to complete for session {session_id}")
+                    thread.join(timeout=2.0)  # Wait max 2 seconds
+                    if thread.is_alive():
+                        logger.warning(f"Thread still running for session {session_id}")
                 
                 # Clean up session data
                 del self.active_sessions[session_id]
-                print(f"Session {session_id} cleaned up")
+                logger.info(f"Session {session_id} cleaned up")
 
     def cleanup_all_sessions(self):
         """Clean up all active sessions (for shutdown)."""
@@ -618,9 +648,10 @@ class TriviaEngine:
             duration = total_frames / fps if fps > 0 else 0
             
             # Calculate optimal sample rate
-            optimal_sample_rate = self._calculate_optimal_sample_rate(total_frames, 300)
+            from .constants import TARGET_FRAME_SAMPLES
+            optimal_sample_rate = self._calculate_optimal_sample_rate(total_frames, TARGET_FRAME_SAMPLES)
             actual_sample_rate = max(sample_rate, optimal_sample_rate)
-            estimated_samples = min(total_frames // actual_sample_rate, 300)
+            estimated_samples = min(total_frames // actual_sample_rate, TARGET_FRAME_SAMPLES)
 
             update_progress(5, 100, f"Video: {total_frames} frames, {fps:.1f} FPS, {duration/60:.1f}min", 'processing')
             update_progress(8, 100, f"Using optimized sample rate: every {actual_sample_rate}th frame", 'processing')
@@ -742,16 +773,18 @@ class TriviaEngine:
             return {"error": f"Could not find video file for: {movie.title}"}
 
         # Calculate optimal sample rate for caching
+        from .utils import safe_video_capture
+        from .constants import TARGET_FRAME_SAMPLES, DEFAULT_SAMPLE_RATE, MIN_SAMPLE_RATE
+        
         try:
             # Quick video properties check for cache key
-            temp_cap = cv2.VideoCapture(video_path)
-            total_frames = int(temp_cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            temp_cap.release()
+            with safe_video_capture(video_path) as temp_cap:
+                total_frames = int(temp_cap.get(cv2.CAP_PROP_FRAME_COUNT))
             
-            optimal_sample_rate = self._calculate_optimal_sample_rate(total_frames, 300)
-            sample_rate = max(200, optimal_sample_rate)  # Use at least 200, but adaptive if needed
+            optimal_sample_rate = self._calculate_optimal_sample_rate(total_frames, TARGET_FRAME_SAMPLES)
+            sample_rate = max(DEFAULT_SAMPLE_RATE, optimal_sample_rate)  # Use at least DEFAULT_SAMPLE_RATE, but adaptive if needed
         except:
-            sample_rate = 200  # Fallback to default
+            sample_rate = DEFAULT_SAMPLE_RATE  # Fallback to default
             
         cache_key = self._get_cache_key(video_path, sample_rate)
         cached_data = self._get_cached_frame_data(cache_key)

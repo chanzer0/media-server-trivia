@@ -1,9 +1,17 @@
 from flask import Flask
 import os
+import logging
 from dotenv import load_dotenv
 from .plex_service import PlexService
 from .tmdb_service import TMDbService
 from .routes import init_routes
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 def create_app():

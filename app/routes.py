@@ -2,6 +2,7 @@ from flask import Blueprint, Flask, render_template, jsonify
 from .plex_service import PlexService
 from .tmdb_service import TMDbService
 from .trivia import TriviaEngine
+from .utils import handle_trivia_response, with_error_handling
 
 
 # kick build
@@ -32,67 +33,43 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
         return render_template("game_frame.html")
 
     @bp.route("/api/trivia")
+    @with_error_handling
     def api_trivia():
         q = trivia.random_question()
-        if not q:
-            return jsonify({"error": "No media found"}), 404
-        return jsonify(q)
+        return handle_trivia_response(q)
 
     @bp.route("/api/trivia/cast")
+    @with_error_handling
     def api_trivia_cast():
         q = trivia.cast_reveal()
-        if not q:
-            return jsonify({"error": "No media found"}), 404
-        return jsonify(q)
+        return handle_trivia_response(q)
 
     @bp.route("/api/trivia/year")
+    @with_error_handling
     def api_trivia_year():
-        try:
-            print("Year trivia API called")
-            q = trivia.guess_year()
-            print(f"Trivia engine returned: {q}")
-            if not q:
-                print("No media found from trivia engine")
-                return jsonify({"error": "No media found"}), 404
-            print(f"Returning JSON: {q}")
-            return jsonify(q)
-        except Exception as e:
-            print(f"Error in year trivia API: {e}")
-            return jsonify({"error": str(e)}), 500
+        q = trivia.guess_year()
+        return handle_trivia_response(q)
 
     @bp.route("/api/trivia/poster")
+    @with_error_handling
     def api_trivia_poster():
         q = trivia.poster_reveal()
-        if not q:
-            return jsonify({"error": "No media found"}), 404
-        return jsonify(q)
+        return handle_trivia_response(q)
 
     @bp.route("/api/trivia/frame")
+    @with_error_handling
     def api_trivia_frame():
-        try:
-            print("Frame trivia API called")
-            
-            # Check if Plex is connected
-            if not plex_service.server:
-                print("Plex server not connected")
-                return jsonify({"error": "Plex server not connected"}), 500
-            
-            # Check if there are movies available
-            movies = plex_service.get_movies()
-            print(f"Found {len(movies)} movies in library")
-            if not movies:
-                print("No movies found in Plex library")
-                return jsonify({"error": "No movies found in Plex library"}), 404
-            
-            result = trivia.frame_colors()
-            print(f"Trivia engine returned: {result}")
-            if "error" in result:
-                print(f"Frame colors error: {result['error']}")
-                return jsonify(result), 404
-            return jsonify(result)
-        except Exception as e:
-            print(f"Error in frame trivia API: {e}")
-            return jsonify({"error": str(e)}), 500
+        # Check if Plex is connected
+        if not plex_service.server:
+            return jsonify({"error": "Plex server not connected"}), 500
+        
+        # Check if there are movies available
+        movies = plex_service.get_movies()
+        if not movies:
+            return jsonify({"error": "No movies found in Plex library"}), 404
+        
+        result = trivia.frame_colors()
+        return handle_trivia_response(result, "Could not process frame colors")
 
     @bp.route("/api/trivia/frame/progress/<session_id>")
     def api_frame_progress(session_id):
@@ -135,21 +112,46 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
     @bp.route("/api/cache/clear", methods=["POST"])
     def api_clear_cache():
         try:
-            cache_count = len(list(trivia.cache_dir.glob("*.json")))
-            trivia._cleanup_old_cache_files(max_age_days=0)  # Clear all cache files
-            return jsonify({"status": "success", "message": f"Cleared {cache_count} cache files"})
+            # Clear frame cache
+            frame_cache_count = len(list(trivia.cache_dir.glob("*.json")))
+            trivia._cleanup_old_cache_files(max_age_days=0)  # Clear all frame cache files
+            
+            # Clear TMDb cache
+            tmdb_cache_count = len(list(tmdb_service.cache.cache_dir.glob("*.json")))
+            tmdb_service.cache.clear_cache()
+            
+            total_count = frame_cache_count + tmdb_cache_count
+            return jsonify({
+                "status": "success", 
+                "message": f"Cleared {total_count} cache files ({frame_cache_count} frame, {tmdb_cache_count} TMDb)"
+            })
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
     @bp.route("/api/cache/info")
     def api_cache_info():
         try:
-            cache_files = list(trivia.cache_dir.glob("*.json"))
-            total_size = sum(f.stat().st_size for f in cache_files)
+            # Frame cache info
+            frame_cache_files = list(trivia.cache_dir.glob("*.json"))
+            frame_total_size = sum(f.stat().st_size for f in frame_cache_files)
+            
+            # TMDb cache info
+            tmdb_cache_dir = tmdb_service.cache.cache_dir
+            tmdb_cache_files = list(tmdb_cache_dir.glob("*.json"))
+            tmdb_total_size = sum(f.stat().st_size for f in tmdb_cache_files)
+            
             return jsonify({
-                "cache_count": len(cache_files),
-                "total_size_mb": round(total_size / (1024 * 1024), 2),
-                "cache_dir": str(trivia.cache_dir)
+                "frame_cache": {
+                    "count": len(frame_cache_files),
+                    "total_size_mb": round(frame_total_size / (1024 * 1024), 2),
+                    "cache_dir": str(trivia.cache_dir)
+                },
+                "tmdb_cache": {
+                    "count": len(tmdb_cache_files),
+                    "total_size_mb": round(tmdb_total_size / (1024 * 1024), 2),
+                    "cache_dir": str(tmdb_cache_dir)
+                },
+                "total_cache_size_mb": round((frame_total_size + tmdb_total_size) / (1024 * 1024), 2)
             })
         except Exception as e:
             return jsonify({"error": str(e)}), 500

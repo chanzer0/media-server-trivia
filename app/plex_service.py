@@ -1,5 +1,8 @@
 from plexapi.server import PlexServer
 from plexapi.video import Show, Movie
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class PlexService:
@@ -14,7 +17,7 @@ class PlexService:
                 self.server = PlexServer(base_url, token)
             except Exception as e:
                 # Fail silently; the routes will handle missing connection
-                print(f"Failed to connect to Plex: {e}")
+                logger.error(f"Failed to connect to Plex: {e}")
                 self.server = None
 
     def get_movies(self) -> list[Movie]:
