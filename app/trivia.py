@@ -728,9 +728,44 @@ class TriviaEngine:
             "movie_count": len(movie_data)
         }
 
-    def _parse_srt_file(self, subtitle_path):
-        """Parse SRT subtitle file and extract dialogue lines."""
+    def _prioritize_subtitle_file(self, subtitle_files):
+        """Prioritize English and SDH subtitle files."""
+        if not subtitle_files:
+            return None
+
+        # Priority patterns (case-insensitive)
+        priority_patterns = [
+            r'\.eng?\.sdh\.srt$',      # English SDH (highest priority)
+            r'\.en\.sdh\.srt$',
+            r'\.sdh\.srt$',
+            r'\.eng?\.forced\.srt$',   # English forced
+            r'\.en\.forced\.srt$',
+            r'\.eng?\.srt$',           # English
+            r'\.en\.srt$',
+            r'\.english\.srt$',
+        ]
+
+        logger.info(f"[Quote] Found {len(subtitle_files)} subtitle files:")
+        for sf in subtitle_files:
+            logger.info(f"[Quote]   - {sf.name}")
+
+        # Try each priority pattern
         import re
+        for pattern in priority_patterns:
+            for subtitle_file in subtitle_files:
+                if re.search(pattern, subtitle_file.name, re.IGNORECASE):
+                    logger.info(f"[Quote] Selected subtitle file (pattern: {pattern}): {subtitle_file.name}")
+                    return subtitle_file
+
+        # Fallback to first file
+        logger.info(f"[Quote] No priority match, using first file: {subtitle_files[0].name}")
+        return subtitle_files[0]
+
+    def _parse_srt_file(self, subtitle_path):
+        """Parse SRT subtitle file and extract dialogue lines with timestamps."""
+        import re
+
+        logger.info(f"[Quote] Parsing SRT file: {subtitle_path}")
 
         try:
             with open(subtitle_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -740,9 +775,15 @@ class TriviaEngine:
             blocks = re.split(r'\n\s*\n', content)
             quotes = []
 
-            for block in blocks:
+            for idx, block in enumerate(blocks):
                 lines = block.strip().split('\n')
                 if len(lines) >= 3:
+                    # Extract timestamp from line[1]
+                    timestamp_line = lines[1] if len(lines) > 1 else "00:00:00,000"
+                    # Parse start time from "HH:MM:SS,mmm --> HH:MM:SS,mmm"
+                    timestamp_match = re.match(r'(\d{2}:\d{2}:\d{2},\d{3})', timestamp_line)
+                    timestamp = timestamp_match.group(1) if timestamp_match else "00:00:00,000"
+
                     # Skip the sequence number and timestamp, get the text
                     text = ' '.join(lines[2:]).strip()
 
@@ -754,104 +795,162 @@ class TriviaEngine:
                     text = text.strip()
 
                     if text and not text.isupper():  # Avoid sound effects
-                        quotes.append(text)
+                        quotes.append({
+                            'text': text,
+                            'timestamp': timestamp
+                        })
 
+            logger.info(f"[Quote] Parsed {len(quotes)} valid dialogue lines from {len(blocks)} subtitle blocks")
             return quotes
         except Exception as e:
-            logger.error(f"Error parsing subtitle file {subtitle_path}: {e}")
+            logger.error(f"[Quote] Error parsing subtitle file {subtitle_path}: {e}")
             return []
+
+    def _parse_timestamp_to_seconds(self, timestamp):
+        """Convert SRT timestamp (HH:MM:SS,mmm) to seconds."""
+        try:
+            import re
+            match = re.match(r'(\d{2}):(\d{2}):(\d{2}),(\d{3})', timestamp)
+            if match:
+                hours, minutes, seconds, milliseconds = map(int, match.groups())
+                return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000.0
+            return 0
+        except Exception:
+            return 0
 
     def quote_game(self):
         """Generate Quote Game - guess movie from subtitle quotes."""
-        from .constants import QUOTE_ROUNDS, QUOTE_MIN_LENGTH, QUOTE_MAX_LENGTH
+        from .constants import (
+            QUOTE_ROUNDS, QUOTE_MIN_LENGTH, QUOTE_MAX_LENGTH,
+            QUOTE_BLOCK_SIZE_MIN, QUOTE_BLOCK_SIZE_MAX, QUOTE_MAX_TIME_GAP_SECONDS
+        )
 
-        movie = self._random_movie()
-        if not movie:
-            return {"error": "No movie found"}
-
-        video_path = self._get_video_file_path(movie)
-        if not video_path:
-            return {"error": f"Could not find video file for: {movie.title}"}
-
-        # Look for subtitle files (.srt) in the same directory
-        video_dir = Path(video_path).parent
-        subtitle_files = list(video_dir.glob("*.srt"))
-
-        if not subtitle_files:
-            logger.info(f"No subtitle files found for {movie.title}, trying again...")
-            # Try another movie
-            for _ in range(10):  # Try up to 10 movies
-                movie = self._random_movie()
-                if not movie:
-                    continue
-
-                video_path = self._get_video_file_path(movie)
-                if not video_path:
-                    continue
-
-                video_dir = Path(video_path).parent
-                subtitle_files = list(video_dir.glob("*.srt"))
-
-                if subtitle_files:
-                    break
-
-            if not subtitle_files:
-                return {"error": "No movies with subtitles found"}
-
-        # Parse the first subtitle file
-        subtitle_path = subtitle_files[0]
-        logger.info(f"Parsing subtitle file: {subtitle_path}")
-
-        quotes = self._parse_srt_file(subtitle_path)
-        if not quotes or len(quotes) < QUOTE_ROUNDS * 3:
-            return {"error": f"Not enough quotes found in subtitle file for {movie.title}"}
-
-        # Filter quotes by length
-        filtered_quotes = [
-            q for q in quotes
-            if QUOTE_MIN_LENGTH <= len(q) <= QUOTE_MAX_LENGTH
-        ]
-
-        if len(filtered_quotes) < QUOTE_ROUNDS * 3:
-            filtered_quotes = [q for q in quotes if len(q) >= QUOTE_MIN_LENGTH]
-
-        if len(filtered_quotes) < QUOTE_ROUNDS * 3:
-            return {"error": f"Not enough suitable quotes for {movie.title}"}
-
-        # Create dialogue blocks of 3-4 consecutive lines
-        dialogue_blocks = []
-        for i in range(len(filtered_quotes) - 3):
-            block_size = random.randint(3, min(4, len(filtered_quotes) - i))
-            block = filtered_quotes[i:i + block_size]
-            dialogue_blocks.append(block)
-
-        if len(dialogue_blocks) < QUOTE_ROUNDS:
-            return {"error": f"Not enough dialogue blocks for {movie.title}"}
-
-        # Select random dialogue blocks
-        selected_quotes = random.sample(dialogue_blocks, QUOTE_ROUNDS)
-
-        logger.info(f"Selected {len(selected_quotes)} dialogue blocks for {movie.title}")
-
-        # Get TMDb data
-        tmdb_id = None
-        for guid in getattr(movie, "guids", []):
-            try:
-                gid = getattr(guid, "id", "")
-                if isinstance(gid, str) and gid.startswith("tmdb://"):
-                    tmdb_id = int(gid.split("tmdb://", 1)[1])
-                    break
-            except Exception:
+        # Try up to 10 movies to find one with valid dialogue blocks
+        for attempt in range(10):
+            movie = self._random_movie()
+            if not movie:
                 continue
 
-        tmdb_data = self._get_tmdb_details(movie) if tmdb_id else None
+            video_path = self._get_video_file_path(movie)
+            if not video_path:
+                logger.info(f"[Quote] Attempt {attempt + 1}: Could not find video file for {movie.title}")
+                continue
 
-        return {
-            "title": movie.title,
-            "year": getattr(movie, "year", None),
-            "quotes": selected_quotes,
-            "total_rounds": QUOTE_ROUNDS,
-        }
+            # Look for subtitle files (.srt) in the same directory
+            video_dir = Path(video_path).parent
+            subtitle_files = list(video_dir.glob("*.srt"))
+
+            if not subtitle_files:
+                logger.info(f"[Quote] Attempt {attempt + 1}: No subtitle files found for {movie.title}")
+                continue
+
+            logger.info(f"[Quote] Attempt {attempt + 1}: Processing {movie.title}")
+
+            # Prioritize English/SDH subtitle files
+            subtitle_path = self._prioritize_subtitle_file(subtitle_files)
+
+            quotes = self._parse_srt_file(subtitle_path)
+            if not quotes or len(quotes) < QUOTE_ROUNDS * 3:
+                logger.info(f"[Quote] Attempt {attempt + 1}: Not enough quotes ({len(quotes) if quotes else 0}) for {movie.title}")
+                continue
+
+            logger.info(f"[Quote] Total quotes extracted: {len(quotes)}")
+
+            # Filter quotes by length
+            filtered_quotes = [
+                q for q in quotes
+                if QUOTE_MIN_LENGTH <= len(q['text']) <= QUOTE_MAX_LENGTH
+            ]
+
+            logger.info(f"[Quote] Quotes after length filter ({QUOTE_MIN_LENGTH}-{QUOTE_MAX_LENGTH} chars): {len(filtered_quotes)}")
+
+            if len(filtered_quotes) < QUOTE_ROUNDS * 3:
+                logger.info(f"[Quote] Not enough quotes in ideal range, relaxing to minimum length only")
+                filtered_quotes = [q for q in quotes if len(q['text']) >= QUOTE_MIN_LENGTH]
+                logger.info(f"[Quote] Quotes after relaxed filter (>={QUOTE_MIN_LENGTH} chars): {len(filtered_quotes)}")
+
+            if len(filtered_quotes) < QUOTE_ROUNDS * QUOTE_BLOCK_SIZE_MIN:
+                logger.info(f"[Quote] Attempt {attempt + 1}: Still not enough quotes ({len(filtered_quotes)}) for {movie.title}")
+                continue
+
+            # Create dialogue blocks with time-gap checking to avoid scene changes
+            dialogue_blocks = []
+            i = 0
+            while i < len(filtered_quotes) - QUOTE_BLOCK_SIZE_MIN:
+                block_size = random.randint(QUOTE_BLOCK_SIZE_MIN, min(QUOTE_BLOCK_SIZE_MAX, len(filtered_quotes) - i))
+
+                # Check if all quotes in this block are within the time gap threshold
+                block_candidate = filtered_quotes[i:i + block_size]
+                is_valid_block = True
+
+                for j in range(len(block_candidate) - 1):
+                    time1 = self._parse_timestamp_to_seconds(block_candidate[j]['timestamp'])
+                    time2 = self._parse_timestamp_to_seconds(block_candidate[j + 1]['timestamp'])
+                    time_gap = time2 - time1
+
+                    if time_gap > QUOTE_MAX_TIME_GAP_SECONDS or time_gap < 0:
+                        is_valid_block = False
+                        logger.debug(f"[Quote] Rejecting block at index {i}: time gap {time_gap:.1f}s between quotes")
+                        break
+
+                if is_valid_block:
+                    dialogue_blocks.append(block_candidate)
+                    logger.debug(f"[Quote] Valid block found at index {i} with {block_size} lines")
+
+                i += 1
+
+            logger.info(f"[Quote] Created {len(dialogue_blocks)} valid dialogue blocks (time-gap filtered)")
+
+            if len(dialogue_blocks) < QUOTE_ROUNDS:
+                logger.info(f"[Quote] Attempt {attempt + 1}: Not enough dialogue blocks ({len(dialogue_blocks)}) for {movie.title}")
+                continue
+
+            # Select random dialogue blocks
+            selected_quotes = random.sample(dialogue_blocks, QUOTE_ROUNDS)
+
+            logger.info(f"[Quote] Selected {len(selected_quotes)} dialogue blocks for {movie.title}")
+
+            # Log the actual selected dialogue blocks for debugging
+            for idx, block in enumerate(selected_quotes):
+                logger.info(f"[Quote] Round {idx + 1} dialogue block ({len(block)} lines):")
+                for line_idx, quote_obj in enumerate(block):
+                    text = quote_obj['text']
+                    timestamp = quote_obj['timestamp']
+                    logger.info(f"[Quote]   [{timestamp}] Line {line_idx + 1}: {text[:70]}{'...' if len(text) > 70 else ''}")
+
+                # Log time span of the block
+                if len(block) > 1:
+                    start_time = self._parse_timestamp_to_seconds(block[0]['timestamp'])
+                    end_time = self._parse_timestamp_to_seconds(block[-1]['timestamp'])
+                    time_span = end_time - start_time
+                    logger.info(f"[Quote]   Time span: {time_span:.1f} seconds")
+
+            # Get TMDb data
+            tmdb_id = None
+            for guid in getattr(movie, "guids", []):
+                try:
+                    gid = getattr(guid, "id", "")
+                    if isinstance(gid, str) and gid.startswith("tmdb://"):
+                        tmdb_id = int(gid.split("tmdb://", 1)[1])
+                        break
+                except Exception:
+                    continue
+
+            tmdb_data = self._get_tmdb_details(movie) if tmdb_id else None
+
+            # Concatenate dialogue lines into single text blocks with ellipsis
+            selected_quotes_text = ['... ' + ' '.join([q['text'] for q in block]) + ' ...' for block in selected_quotes]
+
+            return {
+                "title": movie.title,
+                "year": getattr(movie, "year", None),
+                "quotes": selected_quotes_text,
+                "total_rounds": QUOTE_ROUNDS,
+            }
+
+        # If we get here, all 10 attempts failed
+        logger.error("[Quote] Failed to find a movie with valid dialogue blocks after 10 attempts")
+        return {"error": "Could not find a movie with suitable dialogue blocks. Please try again."}
 
     def timeline_challenge(self):
         """Timeline Challenge - combined cast + year guessing game."""

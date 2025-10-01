@@ -38,6 +38,9 @@ CAST_MATCH_MAX_MOVIES = 5
 CAST_MATCH_CACHE_DIR = "cache/cast_match"
 
 # Quote game settings
-QUOTE_ROUNDS = 5
+QUOTE_ROUNDS = 3
+QUOTE_BLOCK_SIZE_MIN = 4
+QUOTE_BLOCK_SIZE_MAX = 5
 QUOTE_MIN_LENGTH = 30
 QUOTE_MAX_LENGTH = 200
+QUOTE_MAX_TIME_GAP_SECONDS = 3  # Max seconds between consecutive lines in a block

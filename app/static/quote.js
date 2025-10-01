@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedIndex = -1;
   let score = 0;
 
-  const SCORE_PER_ROUND = [500, 400, 300, 200, 100];
+  const SCORE_PER_ROUND = [500, 300, 100];
 
   console.log('[Quote] Game initialized');
 
@@ -42,13 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (data && data.quotes && data.quotes[roundIndex]) {
       const quoteBlock = data.quotes[roundIndex];
 
-      // Handle both single strings and arrays of strings
-      if (Array.isArray(quoteBlock)) {
-        const quotesHTML = quoteBlock.map(line => `<div class="quote-line">"${line}"</div>`).join('');
-        quoteDisplay.innerHTML = `<div class="quote-text">${quotesHTML}</div>`;
-      } else {
-        quoteDisplay.innerHTML = `<div class="quote-text"><div class="quote-line">"${quoteBlock}"</div></div>`;
-      }
+      // Display as single paragraph block
+      quoteDisplay.innerHTML = `<div class="quote-text"><div class="quote-paragraph">${quoteBlock}</div></div>`;
     }
   }
 

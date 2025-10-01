@@ -32,9 +32,11 @@ An Unraid-ready Flask web application that transforms your Plex media library in
 - Smart actor indexing with library-size-based cache invalidation
 
 **Quote Game**
-- Guess movies from actual subtitle dialogue (3-4 consecutive lines per round)
-- 5 rounds with context-rich quote blocks
-- Scoring: 500 → 400 → 300 → 200 → 100 points
+- Guess movies from actual subtitle dialogue blocks
+- 3 rounds with 4-5 consecutive lines per block
+- Time-gap filtering ensures quotes flow naturally (max 3 second gaps)
+- Scoring: 500 → 300 → 100 points
+- Prioritizes English/SDH subtitle files
 - Parses SRT subtitle files directly from media
 
 ### 🚀 Technical Features
@@ -217,12 +219,15 @@ The image expects the same environment variables as the compose file.
   - Actor index cached with automatic library size validation
 
 ### Quote Game
-- **Rounds:** 5 quote blocks
-- **Scoring:** 500/400/300/200/100 points (by round)
+- **Rounds:** 3 dialogue blocks
+- **Scoring:** 500/300/100 points (by round)
 - **Features:**
-  - Displays 3-4 consecutive dialogue lines for context
+  - Each block contains 4-5 consecutive dialogue lines
+  - Time-gap filtering (max 3 seconds between lines) prevents scene changes
+  - Prioritizes English and SDH (hearing impaired) subtitle files
   - Parses SRT subtitle files from media directory
-  - Filters out credits and short quotes
+  - Concatenated display for natural reading flow
+  - Extensive logging with timestamps for debugging
 
 ## Caching System
 
