@@ -1,22 +1,55 @@
 # Media Server Trivia
 
-A template for an Unraid-ready application that turns your Plex library into a trivia game. This project exposes a simple Flask web interface that connects to your Plex server and generates trivia questions from your media.
+An Unraid-ready Flask web application that transforms your Plex media library into an interactive trivia gaming experience. Test your knowledge of movies and shows with multiple game modes featuring progressive hints, intelligent caching, and real-time video frame analysis.
 
 ## Features
-- Connects to a Plex server via API token
-- Lists your movies and TV shows
-- Generates several trivia games from your library:
-  - Cast Reveal Game
-  - Guess the Release Year
-  - Poster Reveal Challenge
-  - Frame Color Challenge (analyzes actual video frames)
-- Dockerized for easy deployment on Unraid or any Docker host
-- Retrieves additional metadata from TMDb using the TMDb GUIDs stored in your Plex library
+
+### 🎮 Five Engaging Game Modes
+
+**Cast & Crew Challenge** *(Two-Phase Game)*
+- **Phase 1:** Progressively reveals cast members (up to 12) with photos and character names
+- **Phase 2:** Identify the director from autocomplete suggestions
+- Decreasing point scoring: 500 → 400 → 300... (earlier guesses earn more)
+- Skip functionality for both phases
+- Total possible: 800 points (500 max movie + 300 director)
+
+**Poster Reveal**
+- Tile-based progressive reveal system (6×4 grid, 24 tiles total)
+- 5 reveals, each uncovering 4 random tiles with smooth animations
+- Score: 100 points per remaining reveal (500 max)
+- Mobile-optimized with responsive grid layout
+
+**Framed**
+- Identify movies from individual frames extracted from actual video files
+- 7 progressively revealed frames from different parts of the movie
+- Scoring: 400 → 300 → 200 → 100 → 75 → 50 → 25 points
+- Utilizes OpenCV for real-time frame extraction and caching
+
+**Cast Match**
+- Guess the actor/actress who appeared in all displayed films
+- Progressive movie reveals (2-5 movies, 4 rounds)
+- Scoring: 400 → 300 → 200 → 100 points per round
+- Smart actor indexing with library-size-based cache invalidation
+
+**Quote Game**
+- Guess movies from actual subtitle dialogue (3-4 consecutive lines per round)
+- 5 rounds with context-rich quote blocks
+- Scoring: 500 → 400 → 300 → 200 → 100 points
+- Parses SRT subtitle files directly from media
+
+### 🚀 Technical Features
+- **Smart Caching System:** Library-size-aware caching for actors, directors, and TMDb data
+- **Real-time Video Processing:** OpenCV-powered frame extraction with persistent caching
+- **TMDb Integration:** Enhanced metadata with cast photos, posters, and director information
+- **Autocomplete Search:** Fast typeahead for movies, actors, and directors
+- **Responsive Design:** Mobile-first UI with dark/light theme support
+- **Docker Ready:** Optimized for Unraid with community template support
 
 ## Requirements
-- Python 3.11 (for development) or Docker
-- A Plex API token and the base URL of your Plex server
-- A TMDb API key
+- **Python 3.11+** (for development) or Docker
+- **Plex Server** with API token and base URL
+- **TMDb API Key** (optional but recommended for enhanced metadata)
+- **Media File Access** (required for Framed game - video frame extraction)
 
 ## Configuration
 The application reads a few environment variables:
@@ -28,7 +61,7 @@ HOST_PORT=<port_for_web_ui>
 TMDB_API_KEY=<your_tmdb_api_key>
 MEDIA_PATH=<path_to_your_media_files>
 ```
-These can be supplied in `docker-compose.yml` or directly in your environment. `HOST_PORT` controls which port the web interface listens on. `MEDIA_PATH` should point to the same media directory that your Plex server uses (required for Frame Color Challenge).
+These can be supplied in `docker-compose.yml` or directly in your environment. `HOST_PORT` controls which port the web interface listens on. `MEDIA_PATH` should point to the same media directory that your Plex server uses (required for Framed and Quote games).
 
 ## Running with Docker
 
@@ -42,7 +75,7 @@ docker compose up
 Ensure that `PLEX_BASE_URL`, `PLEX_TOKEN`, `HOST_PORT`, `TMDB_API_KEY`, and `MEDIA_PATH` are set in your environment or an `.env` file before starting the stack.
 The web interface will be available on `http://localhost:${HOST_PORT}`. By default this is `5054`.
 
-**Important for Frame Color Challenge:** The application needs access to your media files for video frame analysis. Setup varies by platform:
+**Important for Framed Game:** The application needs direct access to your video files for frame extraction. Media access setup varies by platform:
 
 ### Unraid Setup (Recommended Method)
 
@@ -145,6 +178,82 @@ docker pull chanzero/media-server-trivia:latest
 ```
 
 The image expects the same environment variables as the compose file.
+
+## Game Details & Scoring
+
+### Cast & Crew Challenge
+- **Rounds:** 12 cast reveals max (Phase 1), 1 director guess (Phase 2)
+- **Scoring:**
+  - Movie guess: 500/400/300/200/150/100/75/50/40/30/20/10 (by round)
+  - Director guess: 300 points (correct), 0 points (incorrect/skip)
+  - Maximum total: 800 points
+- **Features:**
+  - Progressive cast member reveals with TMDb photos
+  - Autocomplete for movie titles and directors
+  - Skip option for both phases
+
+### Poster Reveal
+- **Rounds:** 5 reveals (1 automatic + 4 manual)
+- **Scoring:** 100 points × remaining reveals (500 max)
+- **Features:**
+  - 24-tile grid (6×4) with random reveal pattern
+  - Smooth fade animations
+  - Wrong guesses automatically reveal more tiles
+
+### Framed
+- **Rounds:** 7 frame reveals
+- **Scoring:** 400/300/200/100/75/50/25 points (by round)
+- **Features:**
+  - Extracts frames from actual video files using OpenCV
+  - Smart frame caching with file modification tracking
+  - Evenly distributed frames across movie duration
+
+### Cast Match
+- **Rounds:** 4 progressive movie reveals
+- **Scoring:** 400/300/200/100 points (by round)
+- **Features:**
+  - Finds actors appearing in 2-5 movies from your library
+  - Progressive movie poster reveals
+  - Actor index cached with automatic library size validation
+
+### Quote Game
+- **Rounds:** 5 quote blocks
+- **Scoring:** 500/400/300/200/100 points (by round)
+- **Features:**
+  - Displays 3-4 consecutive dialogue lines for context
+  - Parses SRT subtitle files from media directory
+  - Filters out credits and short quotes
+
+## Caching System
+
+The application implements intelligent caching to optimize performance:
+
+### TMDb Cache (`cache/tmdb_data/`)
+- **Persists indefinitely** until manual clear
+- Stores movie details, cast, and crew information
+- Uses MD5 hashing for cache keys
+- Automatic serialization/deserialization of TMDb objects
+
+### Frame Cache (`cache/framed_frames/`)
+- **Persists indefinitely** until manual clear or file modification
+- Cache key based on: file path + size + modification time + sample rate
+- Auto-invalidates when video files are modified
+- Stores extracted frames as JPEG images
+
+### Actor & Director Cache (`cache/cast_match/`)
+- **Library-size-aware invalidation:** Rebuilds when movies added/removed
+- Actor index: Maps actors to all their movies in your library
+- Director list: Complete list of all directors with autocomplete
+- Metadata files track library size for validation
+
+### Cache Management
+```bash
+# View cache statistics
+curl http://localhost:5054/api/cache/info
+
+# Clear all caches
+curl -X POST http://localhost:5054/api/cache/clear
+```
 
 ## Development
 
