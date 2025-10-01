@@ -1,10 +1,6 @@
 import random
 import cv2
-import numpy as np
 import os
-import threading
-import time
-import uuid
 import json
 import hashlib
 from pathlib import Path
@@ -33,51 +29,12 @@ class TriviaEngine:
     def __init__(self, plex_service, tmdb_service=None):
         self.plex = plex_service
         self.tmdb = tmdb_service
-        # Progress tracking for frame processing
-        self.active_sessions = {}  # {session_id: {progress, status, cap, thread, created_at}}
-        self.session_lock = threading.Lock()
-        
-        # Frame cache setup
-        self.cache_dir = Path("cache/frame_data")
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.cache_lock = threading.Lock()
-        
-        # Start cleanup timer for stale sessions and cache
-        self._start_cleanup_timer()
 
-    def _start_cleanup_timer(self):
-        """Start a background timer to clean up stale sessions and cache."""
-        from .constants import SESSION_TIMEOUT_SECONDS, SESSION_CLEANUP_INTERVAL
-        
-        def cleanup_stale_data():
-            current_time = time.time()
-            stale_sessions = []
-            
-            # Clean up stale sessions
-            with self.session_lock:
-                for session_id, session in self.active_sessions.items():
-                    # Clean up sessions older than timeout
-                    if current_time - session.get('created_at', 0) > SESSION_TIMEOUT_SECONDS:
-                        stale_sessions.append(session_id)
-            
-            for session_id in stale_sessions:
-                logger.info(f"Cleaning up stale session: {session_id}")
-                self.cleanup_session(session_id)
-            
-            # Note: Cache files are now persistent - no automatic cleanup
-            # self._cleanup_old_cache_files()  # Removed per requirement
-            
-            # Schedule next cleanup
-            if hasattr(self, '_cleanup_timer'):
-                self._cleanup_timer.cancel()
-            self._cleanup_timer = threading.Timer(SESSION_CLEANUP_INTERVAL, cleanup_stale_data)
-            self._cleanup_timer.daemon = True
-            self._cleanup_timer.start()
-        
-        # Start the first cleanup timer
-        self._cleanup_timer = threading.Timer(SESSION_CLEANUP_INTERVAL, cleanup_stale_data)
-        self._cleanup_timer.daemon = True
-        self._cleanup_timer.start()
+        # Framed game cache setup
+        from .constants import FRAMED_CACHE_DIR
+        self.framed_cache_dir = Path(FRAMED_CACHE_DIR)
+        self.framed_cache_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Framed cache directory initialized: {self.framed_cache_dir.absolute()}")
 
     def _get_cache_key(self, video_path, sample_rate=200):
         """Generate a cache key based on video file path, size, and modification time."""
@@ -89,77 +46,6 @@ class TriviaEngine:
         except Exception as e:
             logger.error(f"Error generating cache key: {e}")
             return None
-
-    def _get_cached_frame_data(self, cache_key):
-        """Retrieve cached frame data if it exists and is valid."""
-        if not cache_key:
-            return None
-        
-        cache_file = self.cache_dir / f"{cache_key}.json"
-        
-        try:
-            with self.cache_lock:
-                if cache_file.exists():
-                    with open(cache_file, 'r') as f:
-                        cached_data = json.load(f)
-                    logger.debug(f"Cache hit for key: {cache_key}")
-                    return cached_data
-        except Exception as e:
-            logger.error(f"Error reading cache file {cache_file}: {e}")
-            # Remove corrupted cache file
-            try:
-                cache_file.unlink()
-            except:
-                pass
-        
-        return None
-
-    def _cache_frame_data(self, cache_key, frame_data):
-        """Store frame data in cache."""
-        if not cache_key:
-            return
-        
-        cache_file = self.cache_dir / f"{cache_key}.json"
-        
-        try:
-            with self.cache_lock:
-                with open(cache_file, 'w') as f:
-                    json.dump(frame_data, f, separators=(',', ':'))
-                logger.debug(f"Cached frame data with key: {cache_key}")
-        except Exception as e:
-            logger.error(f"Error writing cache file {cache_file}: {e}")
-
-    def _cleanup_old_cache_files(self, max_age_days=7):
-        """Remove cache files older than max_age_days.
-        
-        Note: By default, cache files persist forever unless manually cleared.
-        This method is only called when explicitly requested (e.g., via API).
-        """
-        try:
-            # If max_age_days is 0, clear all cache files
-            if max_age_days == 0:
-                with self.cache_lock:
-                    for cache_file in self.cache_dir.glob("*.json"):
-                        try:
-                            cache_file.unlink()
-                            logger.info(f"Removed cache file: {cache_file.name}")
-                        except Exception as e:
-                            logger.error(f"Error removing cache file {cache_file}: {e}")
-            else:
-                # Only remove files older than specified age
-                current_time = time.time()
-                max_age_seconds = max_age_days * 24 * 60 * 60
-                
-                with self.cache_lock:
-                    for cache_file in self.cache_dir.glob("*.json"):
-                        try:
-                            if current_time - cache_file.stat().st_mtime > max_age_seconds:
-                                cache_file.unlink()
-                                logger.info(f"Removed old cache file: {cache_file.name}")
-                        except Exception as e:
-                            logger.error(f"Error removing cache file {cache_file}: {e}")
-        except Exception as e:
-            logger.error(f"Error during cache cleanup: {e}")
 
     def _get_tmdb_details(self, movie):
         """Return TMDb metadata for the given Plex movie."""
@@ -480,438 +366,119 @@ class TriviaEngine:
         
         return unique_paths
 
-    def create_session(self):
-        """Create a new processing session with unique ID."""
-        session_id = str(uuid.uuid4())
-        with self.session_lock:
-            self.active_sessions[session_id] = {
-                'progress': 0,
-                'total': 0,
-                'status': 'initializing',
-                'message': 'Preparing to process video...',
-                'cap': None,
-                'thread': None,
-                'result': None,
-                'error': None,
-                'created_at': time.time()
-            }
-        return session_id
+    def _extract_framed_frames(self, video_path, num_frames=7):
+        """Extract random frames from video for Framed game with caching."""
+        from .constants import FRAMED_FRAME_WIDTH, FRAMED_FRAME_HEIGHT
+        from .utils import safe_video_capture
 
-    def get_session_progress(self, session_id):
-        """Get current progress for a session."""
-        with self.session_lock:
-            session = self.active_sessions.get(session_id, None)
-            if session:
-                # Return only JSON-serializable data, excluding VideoCapture and Thread objects
-                return {
-                    'progress': session.get('progress', 0),
-                    'total': session.get('total', 0),
-                    'status': session.get('status', 'unknown'),
-                    'message': session.get('message', ''),
-                    'result': session.get('result'),
-                    'error': session.get('error')
-                }
-            return None
+        cache_key = self._get_cache_key(video_path, sample_rate=num_frames)
+        cache_file = self.framed_cache_dir / f"{cache_key}.json"
 
-    def cleanup_session(self, session_id):
-        """Clean up resources for a session."""
-        with self.session_lock:
-            if session_id in self.active_sessions:
-                session = self.active_sessions[session_id]
-                
-                # Close video capture if open
-                if session.get('cap'):
-                    try:
-                        session['cap'].release()
-                        logger.info(f"Video capture closed for session {session_id}")
-                    except Exception as e:
-                        logger.error(f"Error closing video capture: {e}")
-                
-                # Wait for thread to complete if it exists
-                thread = session.get('thread')
-                if thread and thread.is_alive():
-                    logger.info(f"Waiting for thread to complete for session {session_id}")
-                    thread.join(timeout=2.0)  # Wait max 2 seconds
-                    if thread.is_alive():
-                        logger.warning(f"Thread still running for session {session_id}")
-                
-                # Clean up session data
-                del self.active_sessions[session_id]
-                logger.info(f"Session {session_id} cleaned up")
-
-    def cleanup_all_sessions(self):
-        """Clean up all active sessions (for shutdown)."""
-        with self.session_lock:
-            for session_id in list(self.active_sessions.keys()):
-                self.cleanup_session(session_id)
-
-    def _calculate_optimal_sample_rate(self, total_frames, target_samples=300):
-        """Calculate optimal sampling rate based on video length."""
-        if total_frames <= target_samples:
-            return 1  # Sample every frame for short videos
-        return max(1, total_frames // target_samples)
-
-    def _configure_opencv_performance(self):
-        """Configure OpenCV for maximum performance."""
-        cv2.useOptimized()
-        cv2.setNumThreads(cv2.getNumberOfCPUs())
-
-    def _get_optimal_backend(self, video_path):
-        """Test different backends and return the fastest one."""
-        backends = [
-            (cv2.CAP_FFMPEG, "FFMPEG"),
-            (cv2.CAP_ANY, "Default"),
-        ]
-        
-        # Quick test - open and read a single frame
-        fastest_backend = cv2.CAP_ANY
-        fastest_time = float('inf')
-        
-        for backend, name in backends:
+        if cache_file.exists():
             try:
-                start = time.time()
-                cap = cv2.VideoCapture(video_path, backend)
-                
-                # Set error recovery options for H.264 streams
-                if backend == cv2.CAP_FFMPEG:
-                    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('H','2','6','4'))
-                    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                
-                if cap.isOpened():
-                    ret, frame = cap.read()
-                    if ret and frame is not None:
-                        open_time = time.time() - start
-                        if open_time < fastest_time:
-                            fastest_time = open_time
-                            fastest_backend = backend
-                        print(f"Backend {name}: {open_time:.3f}s")
-                    cap.release()
+                with open(cache_file, 'r') as f:
+                    cached_data = json.load(f)
+                logger.debug(f"Using cached frames for Framed game: {cache_key}")
+                return cached_data
             except Exception as e:
-                print(f"Backend {name} failed: {e}")
-                continue
-        
-        return fastest_backend
-
-    def _extract_frame_colors(self, video_path, sample_rate=200, session_id=None):
-        """Extract average colors from video frames at specified sample rate with optimizations."""
-        def update_progress(progress, total, message, status='processing'):
-            if session_id:
-                with self.session_lock:
-                    if session_id in self.active_sessions:
-                        self.active_sessions[session_id].update({
-                            'progress': progress,
-                            'total': total,
-                            'message': message,
-                            'status': status
-                        })
+                logger.error(f"Error reading cached frames: {e}")
 
         try:
-            # Configure OpenCV for optimal performance
-            self._configure_opencv_performance()
-            
-            # Performance tracking
-            start_time = time.time()
-            
-            update_progress(0, 100, "Opening video file...", 'initializing')
-            
-            # Get optimal backend for this video file
-            optimal_backend = self._get_optimal_backend(video_path)
-            cap = cv2.VideoCapture(video_path, optimal_backend)
+            with safe_video_capture(video_path) as cap:
+                total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                fps = cap.get(cv2.CAP_PROP_FPS)
 
-            if not cap.isOpened():
-                # Fallback to default backend
-                cap = cv2.VideoCapture(video_path)
-                if not cap.isOpened():
-                    update_progress(0, 100, "Failed to open video file", 'error')
-                    return None
+                if total_frames < num_frames:
+                    logger.warning(f"Video has fewer frames ({total_frames}) than requested ({num_frames})")
+                    num_frames = total_frames
 
-            # Store video capture in session for cleanup
-            if session_id:
-                with self.session_lock:
-                    if session_id in self.active_sessions:
-                        self.active_sessions[session_id]['cap'] = cap
+                frame_positions = sorted(random.sample(range(0, total_frames), num_frames))
 
-            # Optimize capture properties for H.264 streams
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            
-            # Set error recovery options to handle corrupted H.264 streams
-            try:
-                # These properties help with corrupted H.264 streams
-                cap.set(cv2.CAP_PROP_CONVERT_RGB, 1)  # Force RGB conversion
-                cap.set(cv2.CAP_PROP_FORMAT, cv2.CAP_PROP_FORMAT)  # Use default format
-            except Exception:
-                pass  # Ignore if properties aren't supported
-            
-            # Get video properties
-            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            duration = total_frames / fps if fps > 0 else 0
-            
-            # Calculate optimal sample rate
-            from .constants import TARGET_FRAME_SAMPLES
-            optimal_sample_rate = self._calculate_optimal_sample_rate(total_frames, TARGET_FRAME_SAMPLES)
-            actual_sample_rate = max(sample_rate, optimal_sample_rate)
-            estimated_samples = min(total_frames // actual_sample_rate, TARGET_FRAME_SAMPLES)
-
-            update_progress(5, 100, f"Video: {total_frames} frames, {fps:.1f} FPS, {duration/60:.1f}min", 'processing')
-            update_progress(8, 100, f"Using optimized sample rate: every {actual_sample_rate}th frame", 'processing')
-
-            colors = []
-            samples_extracted = 0
-            target_size = (640, 360)  # Optimal size for color analysis
-
-            update_progress(10, 100, f"Processing frames (every {actual_sample_rate}th frame)...", 'processing')
-
-            # Use frame seeking for better performance instead of reading every frame
-            frame_positions = list(range(0, total_frames, actual_sample_rate))[:300]  # Cap at 300 samples
-            
-            failed_frames = 0
-            max_failed_frames = 50  # Allow up to 50 failed frames before giving up
-            
-            for i, frame_pos in enumerate(frame_positions):
-                # Check if session was cancelled
-                if session_id:
-                    with self.session_lock:
-                        if session_id not in self.active_sessions:
-                            print("Session cancelled, stopping processing")
-                            cap.release()
-                            return None
-
-                # Seek to specific frame position with error handling
-                try:
+                frames_data = []
+                for frame_pos in frame_positions:
                     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_pos)
                     ret, frame = cap.read()
-                    
-                    if not ret or frame is None:
-                        failed_frames += 1
-                        if failed_frames > max_failed_frames:
-                            print(f"Too many failed frames ({failed_frames}), stopping processing")
-                            break
-                        continue
 
-                    # Validate frame integrity
-                    if frame.size == 0 or len(frame.shape) != 3:
-                        failed_frames += 1
-                        continue
+                    if ret and frame is not None:
+                        resized = cv2.resize(frame, (FRAMED_FRAME_WIDTH, FRAMED_FRAME_HEIGHT))
 
-                    # Reset failed frame counter on successful read
-                    failed_frames = 0
+                        frame_filename = f"{cache_key}_frame_{frame_pos}.jpg"
+                        frame_path = self.framed_cache_dir / frame_filename
 
-                    # Optimized resize using cv2.resize directly to target size
-                    if frame.shape[:2] != target_size[::-1]:  # height, width vs width, height
-                        frame_resized = cv2.resize(frame, target_size)
-                    else:
-                        frame_resized = frame
+                        success = cv2.imwrite(str(frame_path), resized, [cv2.IMWRITE_JPEG_QUALITY, 85])
 
-                    # Use OpenCV's optimized mean function (much faster than numpy)
-                    avg_color_bgr = cv2.mean(frame_resized)[:3]  # Returns BGR values
+                        if success:
+                            logger.info(f"Saved frame to: {frame_path}")
+                        else:
+                            logger.error(f"Failed to save frame to: {frame_path}")
+                            continue
 
-                    # Validate color values
-                    if any(c != c for c in avg_color_bgr):  # Check for NaN
-                        continue
+                        frames_data.append({
+                            "frame_number": frame_pos,
+                            "time": frame_pos / fps if fps > 0 else 0,
+                            "filename": frame_filename
+                        })
 
-                    # Convert BGR to RGB and to hex
-                    hex_color = "#{:02x}{:02x}{:02x}".format(
-                        int(avg_color_bgr[2]),  # R (from B in BGR)
-                        int(avg_color_bgr[1]),  # G
-                        int(avg_color_bgr[0])   # B (from R in BGR)
-                    )
+                with open(cache_file, 'w') as f:
+                    json.dump(frames_data, f, separators=(',', ':'))
 
-                    colors.append({
-                        "frame": frame_pos,
-                        "time": frame_pos / fps if fps > 0 else 0,
-                        "color": hex_color,
-                    })
-
-                    samples_extracted += 1
-
-                    # Update progress more efficiently (every 10 samples instead of every sample)
-                    if samples_extracted % 10 == 0 or samples_extracted == len(frame_positions):
-                        progress = 10 + int((samples_extracted / len(frame_positions)) * 80)  # 10-90%
-                        update_progress(progress, 100, 
-                                      f"Extracted {samples_extracted}/{len(frame_positions)} color samples", 
-                                      'processing')
-
-                except Exception as e:
-                    failed_frames += 1
-                    print(f"Error processing frame {frame_pos}: {e}")
-                    if failed_frames > max_failed_frames:
-                        print(f"Too many failed frames ({failed_frames}), stopping processing")
-                        break
-                    continue
-
-            cap.release()
-
-            if len(colors) > 0:
-                # Performance metrics
-                end_time = time.time()
-                processing_time = end_time - start_time
-                frames_per_second = samples_extracted / processing_time if processing_time > 0 else 0
-                
-                update_progress(95, 100, f"Processed {samples_extracted} samples in {processing_time:.1f}s ({frames_per_second:.1f} fps)", 'finishing')
-                print(f"Frame extraction performance: {processing_time:.2f}s total, {frames_per_second:.2f} samples/sec")
-                return colors
-            else:
-                update_progress(0, 100, "No color samples extracted", 'error')
-                return None
-
+                return frames_data
         except Exception as e:
-            update_progress(0, 100, f"Error: {str(e)}", 'error')
-            if 'cap' in locals():
-                cap.release()
+            logger.error(f"Error extracting frames for Framed game: {e}")
             return None
 
-    def frame_colors(self):
-        """Generate frame color data for a random movie - returns session_id for progress tracking."""
+    def framed(self):
+        """Generate Framed game data - 7 random frames from a random movie."""
+        from .constants import FRAMED_ROUNDS
+
         movie = self._random_movie()
         if not movie:
             return {"error": "No movie found"}
 
-        # Get the actual video file path
         video_path = self._get_video_file_path(movie)
         if not video_path:
             return {"error": f"Could not find video file for: {movie.title}"}
 
-        # Calculate optimal sample rate for caching
-        from .utils import safe_video_capture
-        from .constants import TARGET_FRAME_SAMPLES, DEFAULT_SAMPLE_RATE, MIN_SAMPLE_RATE
-        
-        try:
-            # Quick video properties check for cache key
-            with safe_video_capture(video_path) as temp_cap:
-                total_frames = int(temp_cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            
-            optimal_sample_rate = self._calculate_optimal_sample_rate(total_frames, TARGET_FRAME_SAMPLES)
-            sample_rate = max(DEFAULT_SAMPLE_RATE, optimal_sample_rate)  # Use at least DEFAULT_SAMPLE_RATE, but adaptive if needed
-        except:
-            sample_rate = DEFAULT_SAMPLE_RATE  # Fallback to default
-            
-        cache_key = self._get_cache_key(video_path, sample_rate)
-        cached_data = self._get_cached_frame_data(cache_key)
-        
-        if cached_data:
-            print(f"Using cached frame data for: {movie.title}")
-            # Generate multiple choice options
-            other_movies = self._get_random_movies(3, exclude_movie=movie)
-            movie_options = [movie] + other_movies
-            random.shuffle(movie_options)  # Randomize the order
-            
-            # Find the correct answer index
-            correct_answer = next(i for i, m in enumerate(movie_options) if m.title == movie.title)
-            
-            # Format movie options for frontend
-            options = []
-            for m in movie_options:
-                if hasattr(m, 'year') and m.year:
-                    options.append(f"{m.title} ({m.year})")
-                else:
-                    options.append(m.title)
-            
-            # Return cached data immediately with movie metadata
-            tmdb_data = self._get_tmdb_details(movie)
-            result = {
-                "title": movie.title,
-                "year": getattr(movie, "year", None),
-                "duration": getattr(movie, "duration", None),
-                "frame_colors": cached_data,
-                "total_samples": len(cached_data),
-                "sample_rate": sample_rate,
-                "tmdb": tmdb_data,
-                "options": options,
-                "correct_answer": correct_answer
-            }
-            return {
-                "session_id": None,  # No session needed for cached data
-                "movie_title": movie.title,
-                "status": "completed",
-                "result": result
-            }
+        frames_data = self._extract_framed_frames(video_path, FRAMED_ROUNDS)
+        if not frames_data:
+            return {"error": f"Could not extract frames from: {movie.title}"}
 
-        # Create session for progress tracking if not cached
-        session_id = self.create_session()
-        
-        # Start processing in background thread
-        def process_video():
+        tmdb_id = None
+        for guid in getattr(movie, "guids", []):
             try:
-                with self.session_lock:
-                    if session_id in self.active_sessions:
-                        self.active_sessions[session_id]['status'] = 'processing'
-                        self.active_sessions[session_id]['message'] = "Processing video frames..."
+                gid = getattr(guid, "id", "")
+                if isinstance(gid, str) and gid.startswith("tmdb://"):
+                    tmdb_id = int(gid.split("tmdb://", 1)[1])
+                    break
+            except Exception:
+                continue
 
-                # Extract frame colors with progress tracking
-                frame_colors = self._extract_frame_colors(video_path, sample_rate=sample_rate, session_id=session_id)
-                
-                if frame_colors:
-                    # Cache the frame data for future use
-                    self._cache_frame_data(cache_key, frame_colors)
-                    
-                    # Generate multiple choice options
-                    other_movies = self._get_random_movies(3, exclude_movie=movie)
-                    movie_options = [movie] + other_movies
-                    random.shuffle(movie_options)  # Randomize the order
-                    
-                    # Find the correct answer index
-                    correct_answer = next(i for i, m in enumerate(movie_options) if m.title == movie.title)
-                    
-                    # Format movie options for frontend
-                    options = []
-                    for m in movie_options:
-                        if hasattr(m, 'year') and m.year:
-                            options.append(f"{m.title} ({m.year})")
-                        else:
-                            options.append(m.title)
-                    
-                    # Get TMDb data for additional metadata
-                    tmdb_data = self._get_tmdb_details(movie)
-                    
-                    result = {
-                        "title": movie.title,
-                        "year": getattr(movie, "year", None),
-                        "duration": getattr(movie, "duration", None),
-                        "frame_colors": frame_colors,
-                        "total_samples": len(frame_colors),
-                        "sample_rate": sample_rate,
-                        "tmdb": tmdb_data,
-                        "options": options,
-                        "correct_answer": correct_answer
-                    }
-                    
-                    with self.session_lock:
-                        if session_id in self.active_sessions:
-                            self.active_sessions[session_id].update({
-                                'status': 'completed',
-                                'progress': 100,
-                                'message': f'Successfully processed {len(frame_colors)} color samples',
-                                'result': result
-                            })
-                else:
-                    with self.session_lock:
-                        if session_id in self.active_sessions:
-                            self.active_sessions[session_id].update({
-                                'status': 'error',
-                                'message': 'Failed to extract frame colors',
-                                'error': 'No frame colors extracted'
-                            })
-                            
-            except Exception as e:
-                with self.session_lock:
-                    if session_id in self.active_sessions:
-                        self.active_sessions[session_id].update({
-                            'status': 'error',
-                            'message': f'Error processing video: {str(e)}',
-                            'error': str(e)
-                        })
+        tmdb_data = self._get_tmdb_details(movie) if tmdb_id else None
 
-        # Start processing thread
-        thread = threading.Thread(target=process_video, daemon=True)
-        with self.session_lock:
-            if session_id in self.active_sessions:
-                self.active_sessions[session_id]['thread'] = thread
-        
-        thread.start()
-        
+        director = None
+        if tmdb_data and hasattr(tmdb_data, 'credits'):
+            crew = getattr(tmdb_data.credits, 'crew', [])
+            for person in crew:
+                if hasattr(person, 'job') and person.job == 'Director':
+                    director = person.name
+                    break
+
+        cast = []
+        if tmdb_id and self.tmdb:
+            cast = (self.tmdb.get_movie_cast(tmdb_id) or [])[:5]
+
+        awards = []
+        if tmdb_data:
+            if hasattr(tmdb_data, 'awards') and tmdb_data.awards:
+                awards = tmdb_data.awards
+
         return {
-            "session_id": session_id,
-            "movie_title": movie.title,
-            "status": "processing_started"
+            "title": movie.title,
+            "year": getattr(movie, "year", None),
+            "director": director,
+            "cast": cast,
+            "awards": awards,
+            "frames": frames_data,
+            "total_rounds": FRAMED_ROUNDS,
+            "tmdb": tmdb_data
         }
