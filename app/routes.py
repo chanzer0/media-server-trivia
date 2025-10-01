@@ -33,6 +33,10 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
     def framed_game_page():
         return render_template("game_framed.html")
 
+    @bp.route("/game/cast-match")
+    def cast_match_game_page():
+        return render_template("game_cast_match.html")
+
     @bp.route("/api/trivia")
     @with_error_handling
     def api_trivia():
@@ -70,6 +74,12 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
         result = trivia.framed()
         return handle_trivia_response(result, "Could not generate Framed game")
 
+    @bp.route("/api/trivia/cast-match")
+    @with_error_handling
+    def api_trivia_cast_match():
+        result = trivia.cast_match()
+        return handle_trivia_response(result, "Could not generate Cast Match game")
+
     @bp.route("/api/framed/frames/<filename>")
     def serve_framed_frame(filename):
         from .constants import FRAMED_CACHE_DIR
@@ -101,15 +111,24 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
                 movies.append(f"{m.title} ({m.year})")
             else:
                 movies.append(m.title)
-        
+
         shows = []
         for s in plex_service.get_shows():
             if hasattr(s, 'year') and s.year:
                 shows.append(f"{s.title} ({s.year})")
             else:
                 shows.append(s.title)
-        
+
         return jsonify({"movies": movies, "shows": shows})
+
+    @bp.route("/api/actors")
+    def api_actors():
+        actor_index = trivia._get_actor_index()
+        if not actor_index:
+            return jsonify({"actors": []})
+
+        actors = sorted(actor_index.keys())
+        return jsonify({"actors": actors})
 
     @bp.route("/api/cache/clear", methods=["POST"])
     def api_clear_cache():
@@ -120,14 +139,21 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
                 cache_file.unlink()
                 framed_cache_count += 1
 
+            # Clear Cast Match cache
+            cast_match_cache_count = 0
+            for cache_file in trivia.cast_match_cache_dir.glob("*"):
+                cache_file.unlink()
+                cast_match_cache_count += 1
+            trivia._actor_index = None
+
             # Clear TMDb cache
             tmdb_cache_count = len(list(tmdb_service.cache.cache_dir.glob("*.json")))
             tmdb_service.cache.clear_cache()
 
-            total_count = framed_cache_count + tmdb_cache_count
+            total_count = framed_cache_count + cast_match_cache_count + tmdb_cache_count
             return jsonify({
                 "status": "success",
-                "message": f"Cleared {total_count} cache files ({framed_cache_count} framed, {tmdb_cache_count} TMDb)"
+                "message": f"Cleared {total_count} cache files ({framed_cache_count} framed, {cast_match_cache_count} cast match, {tmdb_cache_count} TMDb)"
             })
         except Exception as e:
             return jsonify({"error": str(e)}), 500
@@ -139,10 +165,16 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
             framed_cache_files = list(trivia.framed_cache_dir.glob("*"))
             framed_total_size = sum(f.stat().st_size for f in framed_cache_files)
 
+            # Cast Match cache info
+            cast_match_cache_files = list(trivia.cast_match_cache_dir.glob("*"))
+            cast_match_total_size = sum(f.stat().st_size for f in cast_match_cache_files)
+
             # TMDb cache info
             tmdb_cache_dir = tmdb_service.cache.cache_dir
             tmdb_cache_files = list(tmdb_cache_dir.glob("*.json"))
             tmdb_total_size = sum(f.stat().st_size for f in tmdb_cache_files)
+
+            total_size = framed_total_size + cast_match_total_size + tmdb_total_size
 
             return jsonify({
                 "framed_cache": {
@@ -150,12 +182,17 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
                     "total_size_mb": round(framed_total_size / (1024 * 1024), 2),
                     "cache_dir": str(trivia.framed_cache_dir)
                 },
+                "cast_match_cache": {
+                    "count": len(cast_match_cache_files),
+                    "total_size_mb": round(cast_match_total_size / (1024 * 1024), 2),
+                    "cache_dir": str(trivia.cast_match_cache_dir)
+                },
                 "tmdb_cache": {
                     "count": len(tmdb_cache_files),
                     "total_size_mb": round(tmdb_total_size / (1024 * 1024), 2),
                     "cache_dir": str(tmdb_cache_dir)
                 },
-                "total_cache_size_mb": round((framed_total_size + tmdb_total_size) / (1024 * 1024), 2)
+                "total_cache_size_mb": round(total_size / (1024 * 1024), 2)
             })
         except Exception as e:
             return jsonify({"error": str(e)}), 500

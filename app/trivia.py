@@ -31,10 +31,16 @@ class TriviaEngine:
         self.tmdb = tmdb_service
 
         # Framed game cache setup
-        from .constants import FRAMED_CACHE_DIR
+        from .constants import FRAMED_CACHE_DIR, CAST_MATCH_CACHE_DIR
         self.framed_cache_dir = Path(FRAMED_CACHE_DIR)
         self.framed_cache_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Framed cache directory initialized: {self.framed_cache_dir.absolute()}")
+
+        # Cast Match cache setup
+        self.cast_match_cache_dir = Path(CAST_MATCH_CACHE_DIR)
+        self.cast_match_cache_dir.mkdir(parents=True, exist_ok=True)
+        self._actor_index = None
+        logger.info(f"Cast Match cache directory initialized: {self.cast_match_cache_dir.absolute()}")
 
     def _get_cache_key(self, video_path, sample_rate=200):
         """Generate a cache key based on video file path, size, and modification time."""
@@ -481,4 +487,186 @@ class TriviaEngine:
             "frames": frames_data,
             "total_rounds": FRAMED_ROUNDS,
             "tmdb": tmdb_data
+        }
+
+    def _get_actor_index(self):
+        """Get or build actor-to-movies index with persistent caching."""
+        movies = self.plex.get_movies()
+        if not movies:
+            return None
+
+        library_size = len(movies)
+        cache_file = self.cast_match_cache_dir / "actor_index.json"
+        metadata_file = self.cast_match_cache_dir / "actor_index_metadata.json"
+
+        if cache_file.exists() and metadata_file.exists():
+            try:
+                with open(metadata_file, 'r') as f:
+                    metadata = json.load(f)
+
+                if metadata.get('library_size') == library_size:
+                    logger.info(f"Using cached actor index for {library_size} movies")
+                    with open(cache_file, 'r') as f:
+                        cached_index = json.load(f)
+
+                    actor_index = {}
+                    for actor_name, movie_titles in cached_index.items():
+                        actor_index[actor_name] = [
+                            m for m in movies if m.title in movie_titles
+                        ]
+
+                    self._actor_index = actor_index
+                    return actor_index
+                else:
+                    logger.info(f"Library size changed ({metadata.get('library_size')} -> {library_size}), rebuilding index")
+            except Exception as e:
+                logger.error(f"Error reading cached actor index: {e}")
+
+        logger.info(f"Building new actor index for {library_size} movies...")
+        actor_movies = {}
+
+        for movie in movies:
+            try:
+                for actor in getattr(movie, 'actors', []):
+                    actor_name = actor.tag
+                    if actor_name not in actor_movies:
+                        actor_movies[actor_name] = []
+                    actor_movies[actor_name].append(movie)
+            except Exception:
+                continue
+
+        cache_data = {
+            actor: [m.title for m in movie_list]
+            for actor, movie_list in actor_movies.items()
+        }
+
+        try:
+            with open(cache_file, 'w') as f:
+                json.dump(cache_data, f, separators=(',', ':'))
+
+            with open(metadata_file, 'w') as f:
+                json.dump({'library_size': library_size}, f)
+
+            logger.info(f"Cached actor index with {len(actor_movies)} actors")
+        except Exception as e:
+            logger.error(f"Error caching actor index: {e}")
+
+        self._actor_index = actor_movies
+        return actor_movies
+
+    def cast_match(self):
+        """Generate Cast Match game - find the actor that appears in multiple movies."""
+        from .constants import CAST_MATCH_ROUNDS, CAST_MATCH_MIN_MOVIES, CAST_MATCH_MAX_MOVIES
+
+        actor_movies = self._get_actor_index()
+        if not actor_movies:
+            return {"error": "No movies in library"}
+
+        eligible_actors = {
+            actor: movie_list
+            for actor, movie_list in actor_movies.items()
+            if CAST_MATCH_MIN_MOVIES <= len(movie_list) <= CAST_MATCH_MAX_MOVIES
+        }
+
+        if not eligible_actors:
+            return {"error": "No actors found with multiple movies in library"}
+
+        answer_actor = random.choice(list(eligible_actors.keys()))
+        actor_movie_list = eligible_actors[answer_actor]
+
+        movie_data = []
+        for movie in actor_movie_list:
+            logger.info(f"Processing movie: {movie.title}")
+
+            tmdb_id = None
+            for guid in getattr(movie, "guids", []):
+                try:
+                    gid = getattr(guid, "id", "")
+                    if isinstance(gid, str) and gid.startswith("tmdb://"):
+                        tmdb_id = int(gid.split("tmdb://", 1)[1])
+                        break
+                except Exception:
+                    continue
+
+            logger.info(f"TMDb ID for {movie.title}: {tmdb_id}")
+
+            tmdb_data = self._get_tmdb_details(movie) if tmdb_id else None
+            logger.info(f"TMDb data retrieved for {movie.title}: {bool(tmdb_data)}")
+
+            if tmdb_data:
+                logger.info(f"TMDb data attributes: {dir(tmdb_data)}")
+                if hasattr(tmdb_data, 'credits'):
+                    logger.info(f"Credits available: {bool(tmdb_data.credits)}")
+                    logger.info(f"Credits attributes: {dir(tmdb_data.credits)}")
+
+            director = None
+            if tmdb_data and hasattr(tmdb_data, 'credits'):
+                crew = getattr(tmdb_data.credits, 'crew', [])
+                logger.info(f"Crew count for {movie.title}: {len(crew) if crew else 0}")
+                for person in crew:
+                    if hasattr(person, 'job') and person.job == 'Director':
+                        director = person.name
+                        logger.info(f"Found director for {movie.title}: {director}")
+                        break
+                if not director:
+                    logger.warning(f"No director found in crew for {movie.title}")
+
+            cast = []
+            if tmdb_id and self.tmdb:
+                all_cast = self.tmdb.get_movie_cast(tmdb_id) or []
+                logger.info(f"Cast count for {movie.title}: {len(all_cast)}")
+                cast = [c for c in all_cast if c["name"] != answer_actor][:5]
+                logger.info(f"Filtered cast (excluding {answer_actor}): {[c['name'] for c in cast]}")
+
+            poster = None
+            if tmdb_data and hasattr(tmdb_data, "poster_path") and tmdb_data.poster_path and self.tmdb:
+                poster = self.tmdb.get_poster_url(tmdb_data.poster_path, "w500")
+                logger.info(f"TMDb poster URL for {movie.title}: {poster}")
+            elif hasattr(movie, "thumbUrl"):
+                poster = movie.thumbUrl
+                logger.info(f"Plex thumbUrl for {movie.title}: {poster}")
+            elif self.plex.server:
+                try:
+                    poster = self.plex.server.url(movie.thumb)
+                    logger.info(f"Plex server thumb URL for {movie.title}: {poster}")
+                except Exception as e:
+                    logger.error(f"Error getting poster for {movie.title}: {e}")
+                    poster = None
+
+            overview = None
+            rating = None
+            genres = []
+            if tmdb_data:
+                logger.info(f"Available TMDb attributes for {movie.title}: overview={hasattr(tmdb_data, 'overview')}, vote_average={hasattr(tmdb_data, 'vote_average')}, genres={hasattr(tmdb_data, 'genres')}")
+
+                if hasattr(tmdb_data, 'overview') and tmdb_data.overview:
+                    overview = tmdb_data.overview
+                    logger.info(f"Overview for {movie.title}: {overview[:100]}...")
+
+                if hasattr(tmdb_data, 'vote_average') and tmdb_data.vote_average:
+                    rating = tmdb_data.vote_average
+                    logger.info(f"Rating for {movie.title}: {rating}")
+
+                if hasattr(tmdb_data, 'genres') and tmdb_data.genres:
+                    genres = [g.name if hasattr(g, 'name') else str(g) for g in tmdb_data.genres]
+                    logger.info(f"Genres for {movie.title}: {genres}")
+
+            movie_dict = {
+                "title": movie.title,
+                "year": getattr(movie, "year", None),
+                "director": director,
+                "cast": cast,
+                "poster": poster,
+                "overview": overview,
+                "rating": rating,
+                "genres": genres
+            }
+            logger.info(f"Final movie data for {movie.title}: {movie_dict}")
+            movie_data.append(movie_dict)
+
+        return {
+            "answer": answer_actor,
+            "movies": movie_data,
+            "total_rounds": CAST_MATCH_ROUNDS,
+            "movie_count": len(movie_data)
         }

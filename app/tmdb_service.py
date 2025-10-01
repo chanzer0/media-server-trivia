@@ -70,18 +70,20 @@ class TMDbService:
         return self._build_image_url(profile_path, size)
 
     def get_movie_details(self, movie_id: int):
-        """Return details for a movie by TMDb id."""
+        """Return details for a movie by TMDb id with credits included."""
         if not self.client:
             return None
-        
+
         # Check cache first
         cached_data = self.cache.get_movie_details(movie_id)
         if cached_data is not None:
             return cached_data
-        
+
         # Fetch from API if not cached
         try:
-            details = self.client.movie(movie_id).details()
+            # Request details with credits appended
+            details = self.client.movie(movie_id).details(append_to_response="credits")
+            logger.info(f"Fetched movie details for {movie_id}, has credits: {hasattr(details, 'credits')}")
             # Cache the result
             self.cache.set_movie_details(movie_id, details)
             return details
