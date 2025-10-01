@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="game-container">
+  <div class="game-header">
+    <h2 class="game-title-page">Quote Game</h2>
+    <p class="hero-subtitle">Can you guess the movie from these quotes?</p>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div id="gameLoading" class="game-loading">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading game...</div>
+  </div>
+
+  <!-- Game Area -->
+  <div id="gameArea" style="display: none;">
+    <!-- Round Indicator -->
+    <div class="round-indicator" id="roundIndicator">
+      <div class="round-dot"></div>
+      <div class="round-dot"></div>
+      <div class="round-dot"></div>
+      <div class="round-dot"></div>
+      <div class="round-dot"></div>
+    </div>
+
+    <!-- Input Section -->
+    <div class="input-group">
+      <div class="input-container">
+        <input
+          id="guessInput"
+          class="form-control"
+          placeholder="Enter movie title..."
+          autocomplete="off"
+        >
+        <div id="customDropdown" class="custom-dropdown"></div>
+      </div>
+      <button class="btn btn-primary" id="guessBtn">
+        Submit Guess
+        <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
+        </svg>
+      </button>
+      <button class="btn btn-secondary" id="skipBtn">
+        Skip
+        <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Result Display -->
+    <div id="result"></div>
+
+    <!-- Quote Display -->
+    <div id="quoteDisplay" class="quote-display"></div>
+  </div>
+
+  <!-- Reveal Area (shown after game ends) -->
+  <div id="revealArea" style="display: none;">
+    <div id="revealContent"></div>
+
+    <div class="game-controls mt-4">
+      <button class="btn btn-primary" id="newGameBtn">
+        <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+        </svg>
+        New Game
+      </button>
+      <button class="btn btn-secondary" id="homeBtn">
+        <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+        </svg>
+        Home
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+.game-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  min-height: 400px;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(99, 102, 241, 0.2);
+  border-radius: 50%;
+  border-top-color: var(--primary-color);
+  animation: spin 0.8s linear infinite;
+}
+
+.loading-text {
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-spinner-small {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+  margin-right: 0.5rem;
+}
+
+.round-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.round-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  transition: all 0.3s ease;
+}
+
+.round-dot.active {
+  background: var(--primary-color);
+  box-shadow: 0 0 12px var(--primary-color);
+  transform: scale(1.2);
+}
+
+.round-dot.used {
+  background: var(--error-color);
+  opacity: 0.6;
+}
+
+.quote-display {
+  margin: 2rem 0;
+  padding: 2rem;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.quote-text {
+  font-size: 1.3rem;
+  line-height: 1.8;
+  color: var(--text-primary);
+  text-align: center;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.quote-line {
+  font-style: italic;
+  padding: 0.5rem;
+  border-left: 3px solid var(--primary-color);
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  text-align: left;
+}
+
+.answer-reveal {
+  text-align: center;
+  margin: 2rem 0;
+  padding: 2rem;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+}
+
+.answer-reveal h2 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--primary-color);
+}
+
+.answer-year {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.answer-poster {
+  max-width: 300px;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.success-message {
+  background: var(--success-color);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 2rem;
+}
+
+.fail-message {
+  background: var(--error-color);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 2rem;
+}
+
+.score-display {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.game-controls {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .quote-text {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+
+  .quote-line {
+    font-size: 1rem;
+    padding: 0.4rem;
+  }
+
+  .answer-reveal h2 {
+    font-size: 1.8rem;
+  }
+
+  .answer-poster {
+    max-width: 200px;
+  }
+}
+</style>
+
+<script src="{{ url_for('static', filename='quote.js') }}"></script>
+{% endblock %}

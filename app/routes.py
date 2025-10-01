@@ -19,11 +19,15 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
 
     @bp.route("/game/cast")
     def cast_game_page():
-        return render_template("game_cast.html")
+        return render_template("game_timeline.html")
 
     @bp.route("/game/year")
     def year_game_page():
-        return render_template("game_year.html")
+        return render_template("game_timeline.html")
+
+    @bp.route("/game/timeline")
+    def timeline_game_page():
+        return render_template("game_timeline.html")
 
     @bp.route("/game/poster")
     def poster_game_page():
@@ -37,6 +41,10 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
     def cast_match_game_page():
         return render_template("game_cast_match.html")
 
+    @bp.route("/game/quote")
+    def quote_game_page():
+        return render_template("game_quote.html")
+
     @bp.route("/api/trivia")
     @with_error_handling
     def api_trivia():
@@ -46,13 +54,19 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
     @bp.route("/api/trivia/cast")
     @with_error_handling
     def api_trivia_cast():
-        q = trivia.cast_reveal()
+        q = trivia.timeline_challenge()
         return handle_trivia_response(q)
 
     @bp.route("/api/trivia/year")
     @with_error_handling
     def api_trivia_year():
-        q = trivia.guess_year()
+        q = trivia.timeline_challenge()
+        return handle_trivia_response(q)
+
+    @bp.route("/api/trivia/timeline")
+    @with_error_handling
+    def api_trivia_timeline():
+        q = trivia.timeline_challenge()
         return handle_trivia_response(q)
 
     @bp.route("/api/trivia/poster")
@@ -79,6 +93,12 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
     def api_trivia_cast_match():
         result = trivia.cast_match()
         return handle_trivia_response(result, "Could not generate Cast Match game")
+
+    @bp.route("/api/trivia/quote")
+    @with_error_handling
+    def api_trivia_quote():
+        result = trivia.quote_game()
+        return handle_trivia_response(result, "Could not generate Quote game")
 
     @bp.route("/api/framed/frames/<filename>")
     def serve_framed_frame(filename):
@@ -129,6 +149,11 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
 
         actors = sorted(actor_index.keys())
         return jsonify({"actors": actors})
+
+    @bp.route("/api/directors")
+    def api_directors():
+        directors = trivia.get_all_directors()
+        return jsonify({"directors": directors})
 
     @bp.route("/api/cache/clear", methods=["POST"])
     def api_clear_cache():

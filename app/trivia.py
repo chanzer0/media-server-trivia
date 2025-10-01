@@ -40,6 +40,7 @@ class TriviaEngine:
         self.cast_match_cache_dir = Path(CAST_MATCH_CACHE_DIR)
         self.cast_match_cache_dir.mkdir(parents=True, exist_ok=True)
         self._actor_index = None
+        self._director_list = None
         logger.info(f"Cast Match cache directory initialized: {self.cast_match_cache_dir.absolute()}")
 
     def _get_cache_key(self, video_path, sample_rate=200):
@@ -100,8 +101,7 @@ class TriviaEngine:
         if not movie:
             return None
         question = f"Which movie features '{movie}'?"
-        tmdb = self._get_tmdb_details(movie)
-        return {"question": question, "answer": movie, "tmdb": tmdb}
+        return {"question": question, "answer": movie}
 
     def cast_reveal(self):
         """Return the top few cast members for a random movie."""
@@ -135,11 +135,9 @@ class TriviaEngine:
             except Exception:
                 cast_with_photos = []
 
-        tmdb = self._get_tmdb_details(movie) if tmdb_id else None
         return {
             "title": movie.title,
             "cast": cast_with_photos[:12],  # Limit to 12 for the game
-            "tmdb": tmdb,
         }
 
     def guess_year(self):
@@ -194,7 +192,6 @@ class TriviaEngine:
             "year": movie.year,
             "summary": getattr(movie, "summary", "No summary available"),
             "cast": cast_with_photos[:4],  # Limit to top 4 for year game
-            "tmdb": tmdb,
         }
 
         print(f"Cast data: {len(cast_with_photos)} actors")
@@ -234,7 +231,6 @@ class TriviaEngine:
             "title": movie.title,
             "poster": poster,
             "summary": movie.summary,
-            "tmdb": tmdb_data,
         }
 
     def _get_video_file_path(self, movie):
@@ -486,7 +482,6 @@ class TriviaEngine:
             "awards": awards,
             "frames": frames_data,
             "total_rounds": FRAMED_ROUNDS,
-            "tmdb": tmdb_data
         }
 
     def _get_actor_index(self):
@@ -553,6 +548,68 @@ class TriviaEngine:
 
         self._actor_index = actor_movies
         return actor_movies
+
+    def get_all_directors(self):
+        """Get list of all unique directors from library with caching."""
+        movies = self.plex.get_movies()
+        if not movies:
+            return []
+
+        library_size = len(movies)
+        cache_file = self.cast_match_cache_dir / "director_list.json"
+        metadata_file = self.cast_match_cache_dir / "director_list_metadata.json"
+
+        if cache_file.exists() and metadata_file.exists():
+            try:
+                with open(metadata_file, 'r') as f:
+                    metadata = json.load(f)
+
+                if metadata.get('library_size') == library_size:
+                    logger.info(f"Using cached director list for {library_size} movies")
+                    with open(cache_file, 'r') as f:
+                        self._director_list = json.load(f)
+                    return self._director_list
+                else:
+                    logger.info(f"Library size changed ({metadata.get('library_size')} -> {library_size}), rebuilding director list")
+            except Exception as e:
+                logger.error(f"Error reading cached director list: {e}")
+
+        logger.info(f"Building director list for {library_size} movies...")
+        directors = set()
+
+        for movie in movies:
+            tmdb_id = None
+            for guid in getattr(movie, "guids", []):
+                try:
+                    gid = getattr(guid, "id", "")
+                    if isinstance(gid, str) and gid.startswith("tmdb://"):
+                        tmdb_id = int(gid.split("tmdb://", 1)[1])
+                        break
+                except Exception:
+                    continue
+
+            if tmdb_id and self.tmdb:
+                tmdb_data = self._get_tmdb_details(movie)
+                if tmdb_data and hasattr(tmdb_data, 'credits'):
+                    crew = getattr(tmdb_data.credits, 'crew', [])
+                    for person in crew:
+                        if hasattr(person, 'job') and person.job == 'Director':
+                            directors.add(person.name)
+
+        self._director_list = sorted(list(directors))
+
+        try:
+            with open(cache_file, 'w') as f:
+                json.dump(self._director_list, f)
+
+            with open(metadata_file, 'w') as f:
+                json.dump({'library_size': library_size}, f)
+
+            logger.info(f"Cached {len(self._director_list)} unique directors")
+        except Exception as e:
+            logger.error(f"Error caching director list: {e}")
+
+        return self._director_list
 
     def cast_match(self):
         """Generate Cast Match game - find the actor that appears in multiple movies."""
@@ -670,3 +727,198 @@ class TriviaEngine:
             "total_rounds": CAST_MATCH_ROUNDS,
             "movie_count": len(movie_data)
         }
+
+    def _parse_srt_file(self, subtitle_path):
+        """Parse SRT subtitle file and extract dialogue lines."""
+        import re
+
+        try:
+            with open(subtitle_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+
+            # Split by double newlines to get subtitle blocks
+            blocks = re.split(r'\n\s*\n', content)
+            quotes = []
+
+            for block in blocks:
+                lines = block.strip().split('\n')
+                if len(lines) >= 3:
+                    # Skip the sequence number and timestamp, get the text
+                    text = ' '.join(lines[2:]).strip()
+
+                    # Clean up HTML tags and formatting
+                    text = re.sub(r'<[^>]+>', '', text)
+                    text = re.sub(r'\[.*?\]', '', text)
+                    text = re.sub(r'\(.*?\)', '', text)
+                    text = re.sub(r'[♪\-]', '', text)
+                    text = text.strip()
+
+                    if text and not text.isupper():  # Avoid sound effects
+                        quotes.append(text)
+
+            return quotes
+        except Exception as e:
+            logger.error(f"Error parsing subtitle file {subtitle_path}: {e}")
+            return []
+
+    def quote_game(self):
+        """Generate Quote Game - guess movie from subtitle quotes."""
+        from .constants import QUOTE_ROUNDS, QUOTE_MIN_LENGTH, QUOTE_MAX_LENGTH
+
+        movie = self._random_movie()
+        if not movie:
+            return {"error": "No movie found"}
+
+        video_path = self._get_video_file_path(movie)
+        if not video_path:
+            return {"error": f"Could not find video file for: {movie.title}"}
+
+        # Look for subtitle files (.srt) in the same directory
+        video_dir = Path(video_path).parent
+        subtitle_files = list(video_dir.glob("*.srt"))
+
+        if not subtitle_files:
+            logger.info(f"No subtitle files found for {movie.title}, trying again...")
+            # Try another movie
+            for _ in range(10):  # Try up to 10 movies
+                movie = self._random_movie()
+                if not movie:
+                    continue
+
+                video_path = self._get_video_file_path(movie)
+                if not video_path:
+                    continue
+
+                video_dir = Path(video_path).parent
+                subtitle_files = list(video_dir.glob("*.srt"))
+
+                if subtitle_files:
+                    break
+
+            if not subtitle_files:
+                return {"error": "No movies with subtitles found"}
+
+        # Parse the first subtitle file
+        subtitle_path = subtitle_files[0]
+        logger.info(f"Parsing subtitle file: {subtitle_path}")
+
+        quotes = self._parse_srt_file(subtitle_path)
+        if not quotes or len(quotes) < QUOTE_ROUNDS * 3:
+            return {"error": f"Not enough quotes found in subtitle file for {movie.title}"}
+
+        # Filter quotes by length
+        filtered_quotes = [
+            q for q in quotes
+            if QUOTE_MIN_LENGTH <= len(q) <= QUOTE_MAX_LENGTH
+        ]
+
+        if len(filtered_quotes) < QUOTE_ROUNDS * 3:
+            filtered_quotes = [q for q in quotes if len(q) >= QUOTE_MIN_LENGTH]
+
+        if len(filtered_quotes) < QUOTE_ROUNDS * 3:
+            return {"error": f"Not enough suitable quotes for {movie.title}"}
+
+        # Create dialogue blocks of 3-4 consecutive lines
+        dialogue_blocks = []
+        for i in range(len(filtered_quotes) - 3):
+            block_size = random.randint(3, min(4, len(filtered_quotes) - i))
+            block = filtered_quotes[i:i + block_size]
+            dialogue_blocks.append(block)
+
+        if len(dialogue_blocks) < QUOTE_ROUNDS:
+            return {"error": f"Not enough dialogue blocks for {movie.title}"}
+
+        # Select random dialogue blocks
+        selected_quotes = random.sample(dialogue_blocks, QUOTE_ROUNDS)
+
+        logger.info(f"Selected {len(selected_quotes)} dialogue blocks for {movie.title}")
+
+        # Get TMDb data
+        tmdb_id = None
+        for guid in getattr(movie, "guids", []):
+            try:
+                gid = getattr(guid, "id", "")
+                if isinstance(gid, str) and gid.startswith("tmdb://"):
+                    tmdb_id = int(gid.split("tmdb://", 1)[1])
+                    break
+            except Exception:
+                continue
+
+        tmdb_data = self._get_tmdb_details(movie) if tmdb_id else None
+
+        return {
+            "title": movie.title,
+            "year": getattr(movie, "year", None),
+            "quotes": selected_quotes,
+            "total_rounds": QUOTE_ROUNDS,
+        }
+
+    def timeline_challenge(self):
+        """Timeline Challenge - combined cast + year guessing game."""
+        logger.info("[Timeline] Starting timeline challenge")
+
+        movie = self._random_movie()
+        if not movie:
+            logger.error("[Timeline] No movie found")
+            return {"error": "No movie found"}
+
+        logger.info(f"[Timeline] Selected movie: {movie.title} ({movie.year})")
+
+        tmdb_id = None
+        for guid in getattr(movie, "guids", []):
+            try:
+                gid = getattr(guid, "id", "")
+                if isinstance(gid, str) and gid.startswith("tmdb://"):
+                    tmdb_id = int(gid.split("tmdb://", 1)[1])
+                    break
+            except Exception as e:
+                logger.warning(f"[Timeline] Error parsing guid: {e}")
+                continue
+
+        logger.info(f"[Timeline] TMDb ID: {tmdb_id}")
+
+        cast_with_photos = []
+        if tmdb_id and self.tmdb:
+            logger.info("[Timeline] Fetching cast from TMDb")
+            cast_with_photos = self.tmdb.get_movie_cast(tmdb_id) or []
+            logger.info(f"[Timeline] Got {len(cast_with_photos)} cast members from TMDb")
+
+        if not cast_with_photos:
+            logger.info("[Timeline] No TMDb cast, falling back to Plex actors")
+            try:
+                cast_names = [actor.tag for actor in movie.actors][:12]
+                cast_with_photos = [
+                    {"name": name, "profile_path": None} for name in cast_names
+                ]
+                logger.info(f"[Timeline] Got {len(cast_with_photos)} actors from Plex")
+            except Exception as e:
+                logger.error(f"[Timeline] Error getting Plex actors: {e}")
+                cast_with_photos = []
+
+        logger.info("[Timeline] Fetching TMDb details for director")
+        tmdb = self._get_tmdb_details(movie) if tmdb_id else None
+        logger.info(f"[Timeline] TMDb details fetched: {tmdb is not None}, has credits: {hasattr(tmdb, 'credits') if tmdb else False}")
+
+        director = None
+        if tmdb and hasattr(tmdb, 'credits'):
+            crew = getattr(tmdb.credits, 'crew', [])
+            logger.info(f"[Timeline] Searching {len(crew)} crew members for director")
+            for person in crew:
+                if hasattr(person, 'job') and person.job == 'Director':
+                    director = person.name
+                    logger.info(f"[Timeline] Found director: {director}")
+                    break
+
+        if not director:
+            logger.warning(f"[Timeline] No director found for {movie.title}")
+
+        result = {
+            "title": movie.title,
+            "year": movie.year,
+            "summary": getattr(movie, "summary", "No summary available"),
+            "cast": cast_with_photos[:12],
+            "director": director,
+        }
+
+        logger.info(f"[Timeline] Returning result with {len(result['cast'])} cast members, director: {director}")
+        return result

@@ -8,13 +8,50 @@ import hashlib
 
 logger = logging.getLogger(__name__)
 
+class DictObject:
+    """Simple class to convert dictionaries to objects with attribute access."""
+    def __init__(self, data):
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if isinstance(value, dict):
+                    setattr(self, key, DictObject(value))
+                elif isinstance(value, list):
+                    setattr(self, key, [DictObject(item) if isinstance(item, dict) else item for item in value])
+                else:
+                    setattr(self, key, value)
+        else:
+            self.__dict__ = data
+
 class TMDbCache:
     """Cache for TMDb API responses with indefinite persistence."""
-    
+
     def __init__(self, cache_dir="cache/tmdb_data"):
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.cache_lock = Lock()
+
+    def _serialize_tmdb_object(self, obj):
+        """Convert TMDb objects to JSON-serializable dictionaries."""
+        if obj is None:
+            return None
+
+        if isinstance(obj, (str, int, float, bool)):
+            return obj
+
+        if isinstance(obj, list):
+            return [self._serialize_tmdb_object(item) for item in obj]
+
+        if isinstance(obj, dict):
+            return {k: self._serialize_tmdb_object(v) for k, v in obj.items()}
+
+        if hasattr(obj, '__dict__'):
+            result = {}
+            for key, value in obj.__dict__.items():
+                if not key.startswith('_'):
+                    result[key] = self._serialize_tmdb_object(value)
+            return result
+
+        return str(obj)
         
     def _get_cache_key(self, cache_type, item_id):
         """Generate a cache key for TMDb data."""
@@ -45,37 +82,40 @@ class TMDbCache:
         """Retrieve cached data if it exists."""
         if not cache_key:
             return None
-            
+
         cache_file = self.cache_dir / f"{cache_key}.json"
-        
+
         try:
             with self.cache_lock:
                 if cache_file.exists():
                     with open(cache_file, 'r') as f:
                         cached_data = json.load(f)
                     logger.debug(f"TMDb cache hit for key: {cache_key}")
-                    return cached_data.get('data')
+                    data = cached_data.get('data')
+                    if data and isinstance(data, dict):
+                        return DictObject(data)
+                    return data
         except Exception as e:
             logger.error(f"Error reading TMDb cache file {cache_file}: {e}")
-            # Remove corrupted cache file
             try:
                 cache_file.unlink()
             except:
                 pass
-        
+
         return None
     
     def _cache_data(self, cache_key, data):
         """Store data in cache with timestamp."""
         if not cache_key or data is None:
             return
-            
+
         cache_file = self.cache_dir / f"{cache_key}.json"
-        
+
         try:
             with self.cache_lock:
+                serialized_data = self._serialize_tmdb_object(data)
                 cache_entry = {
-                    'data': data,
+                    'data': serialized_data,
                     'timestamp': time.time()
                 }
                 with open(cache_file, 'w') as f:

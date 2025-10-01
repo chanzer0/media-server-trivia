@@ -1,25 +1,25 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const frameImage = document.getElementById('frameImage');
-  const frameLoading = document.getElementById('frameLoading');
+  const gameArea = document.getElementById('gameArea');
+  const gameLoading = document.getElementById('gameLoading');
   const roundIndicator = document.getElementById('roundIndicator');
+  const quoteDisplay = document.getElementById('quoteDisplay');
+  const guessInput = document.getElementById('guessInput');
+  const customDropdown = document.getElementById('customDropdown');
   const guessBtn = document.getElementById('guessBtn');
   const skipBtn = document.getElementById('skipBtn');
-  const guessInput = document.getElementById('guessInput');
   const result = document.getElementById('result');
-  const customDropdown = document.getElementById('customDropdown');
-  const movieDetails = document.getElementById('movieDetails');
-  const gameArea = document.getElementById('gameArea');
+  const revealArea = document.getElementById('revealArea');
 
   let data = null;
   let currentRound = 0;
-  let allTitles = [];
-  let selectedIndex = -1;
   let gameOver = false;
+  let allMovies = [];
+  let selectedIndex = -1;
   let score = 0;
 
-  const SCORE_PER_ROUND = [400, 300, 200, 100, 75, 50, 25];
+  const SCORE_PER_ROUND = [500, 400, 300, 200, 100];
 
-  console.log('[Framed] Game initialized');
+  console.log('[Quote] Game initialized');
 
   function updateRoundIndicator() {
     const rounds = document.querySelectorAll('.round-dot');
@@ -34,52 +34,42 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function showFrame(roundIndex) {
-    if (!data || !data.frames || roundIndex >= data.frames.length) {
-      console.error('[Framed] Cannot show frame:', {data, roundIndex});
-      return;
-    }
-
-    const frame = data.frames[roundIndex];
-    const frameUrl = `/api/framed/frames/${frame.filename}`;
-
-    console.log('[Framed] Loading frame:', {roundIndex, frame, frameUrl});
-
-    // Show loading indicator
-    frameLoading.style.display = 'flex';
-    frameImage.style.display = 'none';
-
-    frameImage.onload = () => {
-      console.log('[Framed] Frame loaded successfully');
-      frameLoading.style.display = 'none';
-      frameImage.style.display = 'block';
-    };
-
-    frameImage.onerror = (error) => {
-      console.error('[Framed] Frame failed to load:', error, frameUrl);
-      frameLoading.querySelector('.loading-text').textContent = 'Failed to load frame';
-    };
-
-    frameImage.src = frameUrl;
-    frameImage.alt = `Frame ${roundIndex + 1}`;
+  function showRound(roundIndex) {
+    console.log('[Quote] Showing round:', roundIndex);
     currentRound = roundIndex;
     updateRoundIndicator();
+
+    if (data && data.quotes && data.quotes[roundIndex]) {
+      const quoteBlock = data.quotes[roundIndex];
+
+      // Handle both single strings and arrays of strings
+      if (Array.isArray(quoteBlock)) {
+        const quotesHTML = quoteBlock.map(line => `<div class="quote-line">"${line}"</div>`).join('');
+        quoteDisplay.innerHTML = `<div class="quote-text">${quotesHTML}</div>`;
+      } else {
+        quoteDisplay.innerHTML = `<div class="quote-text"><div class="quote-line">"${quoteBlock}"</div></div>`;
+      }
+    }
   }
 
-  function showDropdown(filteredTitles) {
+  function showDropdown(filteredMovies) {
+    console.log('[Quote] showDropdown called with', filteredMovies.length, 'movies');
     customDropdown.innerHTML = '';
-    const limitedTitles = filteredTitles.slice(0, 10);
+    const limitedMovies = filteredMovies.slice(0, 10);
 
-    if (limitedTitles.length > 0) {
-      limitedTitles.forEach((title) => {
+    if (limitedMovies.length > 0) {
+      console.log('[Quote] Creating dropdown with movies:', limitedMovies);
+      limitedMovies.forEach((movie) => {
         const option = document.createElement('div');
         option.className = 'dropdown-option';
-        option.textContent = title;
-        option.addEventListener('click', () => selectOption(title));
+        option.textContent = movie;
+        option.addEventListener('click', () => selectOption(movie));
         customDropdown.appendChild(option);
       });
       customDropdown.classList.add('show');
+      console.log('[Quote] Dropdown should now be visible with class "show"');
     } else {
+      console.log('[Quote] No movies to show, hiding dropdown');
       hideDropdown();
     }
   }
@@ -89,8 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedIndex = -1;
   }
 
-  function selectOption(title) {
-    guessInput.value = title;
+  function selectOption(movie) {
+    guessInput.value = movie;
     hideDropdown();
     guessInput.focus();
   }
@@ -104,11 +94,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   guessInput.addEventListener('input', (e) => {
     const query = e.target.value.toLowerCase().trim();
+    console.log('[Quote] Input event - query:', query, 'allMovies.length:', allMovies.length);
 
     if (query.length > 0) {
-      const filtered = allTitles.filter(title =>
-        title.toLowerCase().includes(query)
+      const filtered = allMovies.filter(movie =>
+        movie.toLowerCase().includes(query)
       );
+      console.log('[Quote] Filtered movies:', filtered.length, 'matches for query:', query);
+      if (filtered.length > 0) {
+        console.log('[Quote] Sample matches:', filtered.slice(0, 3));
+      }
       showDropdown(filtered);
     } else {
       hideDropdown();
@@ -150,59 +145,69 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  async function loadTitles() {
+  async function loadMovies() {
     try {
+      console.log('[Quote] Starting to load movies from /api/library...');
       const res = await fetch('/api/library');
-      const library = await res.json();
-      allTitles = [...library.movies, ...library.shows];
+      console.log('[Quote] Library API response status:', res.status);
+
+      const data = await res.json();
+      console.log('[Quote] Library API response data:', data);
+
+      allMovies = data.movies || [];
+      console.log('[Quote] Loaded movies for autocomplete:', allMovies.length);
+
+      if (allMovies.length > 0) {
+        console.log('[Quote] Sample movies:', allMovies.slice(0, 5));
+      } else {
+        console.warn('[Quote] No movies loaded! This will prevent autocomplete from working.');
+      }
     } catch (error) {
-      console.error('Failed to load titles:', error);
-      allTitles = [];
+      console.error('[Quote] Failed to load movies:', error);
+      allMovies = [];
     }
   }
 
   async function initGame() {
     try {
-      console.log('[Framed] Initializing game...');
-      frameLoading.style.display = 'flex';
-      frameLoading.querySelector('.loading-text').textContent = 'Loading game...';
-      frameImage.style.display = 'none';
+      console.log('[Quote] Initializing game...');
+      gameLoading.style.display = 'flex';
+      gameArea.style.display = 'none';
+      revealArea.style.display = 'none';
       result.innerHTML = '';
       gameOver = false;
       currentRound = 0;
       score = 0;
 
-      console.log('[Framed] Fetching /api/trivia/framed...');
-      const res = await fetch('/api/trivia/framed');
-      console.log('[Framed] Response status:', res.status);
+      console.log('[Quote] Fetching /api/trivia/quote...');
+      const res = await fetch('/api/trivia/quote');
+      console.log('[Quote] Response status:', res.status);
 
       data = await res.json();
-      console.log('[Framed] Received data:', data);
+      console.log('[Quote] Received data:', data);
 
       if (data.error) {
-        console.error('[Framed] API returned error:', data.error);
+        console.error('[Quote] API returned error:', data.error);
         result.innerHTML = `<div class='result error'>${data.error}</div>`;
-        frameLoading.style.display = 'none';
+        gameLoading.style.display = 'none';
         return;
       }
 
-      if (!data.frames || data.frames.length === 0) {
-        console.error('[Framed] No frames in response:', data);
-        result.innerHTML = `<div class='result error'>No frames available</div>`;
-        frameLoading.style.display = 'none';
+      if (!data.quotes || data.quotes.length === 0) {
+        console.error('[Quote] No quotes in response:', data);
+        result.innerHTML = `<div class='result error'>No quotes available</div>`;
+        gameLoading.style.display = 'none';
         return;
       }
 
-      console.log('[Framed] Game data loaded, showing first frame');
-      result.innerHTML = '';
+      console.log('[Quote] Game data loaded');
+      gameLoading.style.display = 'none';
       gameArea.style.display = 'block';
-      movieDetails.style.display = 'none';
       guessInput.value = '';
       guessInput.disabled = false;
       guessBtn.disabled = false;
       skipBtn.disabled = false;
 
-      // Reset new game button if it was used
       const newGameBtn = document.getElementById('newGameBtn');
       if (newGameBtn) {
         newGameBtn.disabled = false;
@@ -214,58 +219,39 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
       }
 
-      showFrame(0);
+      showRound(0);
     } catch (error) {
-      console.error('[Framed] Failed to initialize game:', error);
+      console.error('[Quote] Failed to initialize game:', error);
       result.innerHTML = `<div class='result error'>Failed to load game. Please try again.</div>`;
-      frameLoading.style.display = 'none';
+      gameLoading.style.display = 'none';
     }
   }
 
-  function showMovieDetails(won) {
+  function showReveal(won) {
     gameArea.style.display = 'none';
-    movieDetails.style.display = 'block';
+    revealArea.style.display = 'block';
 
-    const detailsContent = document.getElementById('detailsContent');
+    const revealContent = document.getElementById('revealContent');
     const statusMessage = won
-      ? `<div class="success-message">🎉 Congratulations! You guessed it in round ${currentRound + 1}!<br><strong>Score: ${score} points</strong></div>`
-      : `<div class="fail-message">😔 Better luck next time! The movie was:<br><strong>Score: 0 points</strong></div>`;
+      ? `<div class="success-message">🎉 Congratulations! You guessed it in round ${currentRound + 1}!<br><div class="score-display">Score: ${score} points</div></div>`
+      : `<div class="fail-message">😔 Better luck next time!<br><div class="score-display">Score: 0 points</div></div>`;
 
-    let castHTML = '';
-    if (data.cast && data.cast.length > 0) {
-      castHTML = '<div class="cast-section"><h3>Cast</h3><div class="cast-list">';
-      data.cast.forEach(actor => {
-        if (actor.profile_path) {
-          castHTML += `
-            <div class="cast-member">
-              <img src="${actor.profile_path}" alt="${actor.name}" class="cast-photo">
-              <div class="cast-name">${actor.name}</div>
-            </div>
-          `;
-        } else {
-          castHTML += `<div class="cast-member-text">${actor.name}</div>`;
-        }
-      });
-      castHTML += '</div></div>';
+    let posterHTML = '';
+    if (data.tmdb && data.tmdb.poster_path) {
+      posterHTML = `<img src="${data.tmdb.poster_path}" alt="${data.title}" class="answer-poster">`;
     }
 
-    const awardsHTML = data.awards && data.awards.length > 0
-      ? `<div class="awards-section"><h3>🏆 Awards</h3><ul>${data.awards.map(a => `<li>${a}</li>`).join('')}</ul></div>`
-      : '';
-
-    detailsContent.innerHTML = `
+    revealContent.innerHTML = `
       ${statusMessage}
-      <div class="movie-title-reveal">
-        <h2>${data.title}</h2>
-        ${data.year ? `<div class="movie-year">(${data.year})</div>` : ''}
-        ${data.director ? `<div class="movie-director">Directed by ${data.director}</div>` : ''}
+      <div class="answer-reveal">
+        ${posterHTML}
+        <h2>The answer was: ${data.title}</h2>
+        ${data.year ? `<div class="answer-year">${data.year}</div>` : ''}
       </div>
-      ${castHTML}
-      ${awardsHTML}
     `;
   }
 
-  guessBtn.addEventListener('click', async () => {
+  guessBtn.addEventListener('click', () => {
     if (gameOver) return;
 
     const guess = guessInput.value.trim();
@@ -273,22 +259,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     hideDropdown();
 
-    const guessTitle = guess.toLowerCase().replace(/\s*\(\d{4}\)\s*$/, '').trim();
-    const correctTitle = data.title.toLowerCase();
+    const guessLower = guess.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
+    const correctLower = data.title.toLowerCase();
 
-    if (guessTitle === correctTitle) {
+    if (guessLower === correctLower) {
       gameOver = true;
-      score = SCORE_PER_ROUND[currentRound] || 10;
       guessInput.disabled = true;
       guessBtn.disabled = true;
       skipBtn.disabled = true;
-      result.innerHTML = `<div class='result success'>✅ Correct! (+${score} points)</div>`;
-      setTimeout(() => showMovieDetails(true), 1000);
+      score = SCORE_PER_ROUND[currentRound] || 0;
+      console.log('[Quote] Correct guess! Score:', score, 'Round:', currentRound);
+      showReveal(true);
     } else {
       currentRound++;
 
       if (currentRound < data.total_rounds) {
-        showFrame(currentRound);
+        showRound(currentRound);
         result.innerHTML = `<div class='result error'>❌ Incorrect. Try again! (${data.total_rounds - currentRound} attempts left)</div>`;
         guessInput.value = '';
         guessInput.focus();
@@ -298,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
         guessBtn.disabled = true;
         skipBtn.disabled = true;
         result.innerHTML = `<div class='result error'>❌ Game Over!</div>`;
-        setTimeout(() => showMovieDetails(false), 1000);
+        setTimeout(() => showReveal(false), 1000);
       }
     }
   });
@@ -307,12 +293,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (gameOver) return;
     if (!data) return;
 
-    console.log('[Framed] Skip button clicked');
+    console.log('[Quote] Skip button clicked');
     hideDropdown();
     currentRound++;
 
     if (currentRound < data.total_rounds) {
-      showFrame(currentRound);
+      showRound(currentRound);
       result.innerHTML = `<div class='result'>⏭️ Skipped! (${data.total_rounds - currentRound} attempts left)</div>`;
       guessInput.value = '';
       guessInput.focus();
@@ -322,13 +308,13 @@ document.addEventListener('DOMContentLoaded', () => {
       guessBtn.disabled = true;
       skipBtn.disabled = true;
       result.innerHTML = `<div class='result error'>❌ Game Over!</div>`;
-      setTimeout(() => showMovieDetails(false), 1000);
+      setTimeout(() => showReveal(false), 1000);
     }
   });
 
   const newGameBtn = document.getElementById('newGameBtn');
   newGameBtn.addEventListener('click', () => {
-    console.log('[Framed] New game button clicked');
+    console.log('[Quote] New game button clicked');
     newGameBtn.disabled = true;
     newGameBtn.innerHTML = '<span class="loading-spinner-small"></span> Loading...';
     initGame();
@@ -339,6 +325,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.location.href = '/';
   });
 
-  loadTitles();
+  loadMovies();
   initGame();
 });

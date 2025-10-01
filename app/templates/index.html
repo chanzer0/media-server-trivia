@@ -12,35 +12,17 @@
 
 <!-- Games Grid -->
 <div class="games-grid">
-  <!-- Cast Reveal Game -->
+  <!-- Cast & Crew Challenge -->
   <div class="game-card">
     <svg class="game-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+      <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
     </svg>
-    <h3 class="game-title">Cast Reveal</h3>
+    <h3 class="game-title">Cast & Crew</h3>
     <p class="game-description">
-      Guess the movie as cast members are revealed one by one. 
-      The fewer hints you need, the higher your score!
+      Two-phase challenge! First guess the movie from cast reveals, then identify the director.
+      Test your knowledge of who's in front of and behind the camera!
     </p>
-    <a href="{{ url_for('main.cast_game_page') }}" class="btn btn-primary">
-      Play Now
-      <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M10 17l5-5-5-5v10z"/>
-      </svg>
-    </a>
-  </div>
-
-  <!-- Year Game -->
-  <div class="game-card">
-    <svg class="game-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
-    </svg>
-    <h3 class="game-title">Guess the Year</h3>
-    <p class="game-description">
-      How well do you know when movies were released? 
-      Test your knowledge of cinema history!
-    </p>
-    <a href="{{ url_for('main.year_game_page') }}" class="btn btn-primary">
+    <a href="{{ url_for('main.timeline_game_page') }}" class="btn btn-primary">
       Play Now
       <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M10 17l5-5-5-5v10z"/>
@@ -55,8 +37,8 @@
     </svg>
     <h3 class="game-title">Poster Reveal</h3>
     <p class="game-description">
-      Can you identify a movie from its poster? 
-      Scratch off the silver surface to reveal clues!
+      Reveal tiles to uncover the hidden poster.
+      Can you guess the movie from partial clues?
     </p>
     <a href="{{ url_for('main.poster_game_page') }}" class="btn btn-primary">
       Play Now
@@ -95,6 +77,24 @@
       Guess from progressive clues!
     </p>
     <a href="{{ url_for('main.cast_match_game_page') }}" class="btn btn-primary">
+      Play Now
+      <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 17l5-5-5-5v10z"/>
+      </svg>
+    </a>
+  </div>
+
+  <!-- Quote Game -->
+  <div class="game-card">
+    <svg class="game-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/>
+    </svg>
+    <h3 class="game-title">Quote Game</h3>
+    <p class="game-description">
+      Can you identify the movie from these memorable quotes?
+      Test your dialogue recognition!
+    </p>
+    <a href="{{ url_for('main.quote_game_page') }}" class="btn btn-primary">
       Play Now
       <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M10 17l5-5-5-5v10z"/>
