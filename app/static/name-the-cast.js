@@ -36,12 +36,67 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function normalizeName(value) {
     if (!value) return '';
-    return value
+
+    const transliterationMap = {
+      'ß': 'ss',
+      'ẞ': 'ss',
+      'ø': 'o',
+      'Ø': 'o',
+      'ð': 'd',
+      'Ð': 'd',
+      'þ': 'th',
+      'Þ': 'th',
+      'ł': 'l',
+      'Ł': 'l',
+      'æ': 'ae',
+      'Æ': 'ae',
+      'œ': 'oe',
+      'Œ': 'oe',
+    };
+
+    const transliterated = String(value).replace(
+      /[ßẞøØðÐþÞłŁæÆœŒ]/g,
+      (char) => transliterationMap[char] || char
+    );
+
+    return transliterated
       .normalize('NFKD')
-      .replace(/[^\w\s]/g, ' ')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9\s]/g, ' ')
       .toLowerCase()
       .replace(/\s+/g, ' ')
       .trim();
+  }
+
+  function compactName(value) {
+    return String(value || '').replace(/\s+/g, '');
+  }
+
+  function levenshteinDistance(a, b) {
+    const s = compactName(a);
+    const t = compactName(b);
+    const m = s.length;
+    const n = t.length;
+
+    if (m === 0) return n;
+    if (n === 0) return m;
+
+    const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = 0; i <= m; i += 1) dp[i][0] = i;
+    for (let j = 0; j <= n; j += 1) dp[0][j] = j;
+
+    for (let i = 1; i <= m; i += 1) {
+      for (let j = 1; j <= n; j += 1) {
+        const cost = s[i - 1] === t[j - 1] ? 0 : 1;
+        dp[i][j] = Math.min(
+          dp[i - 1][j] + 1,
+          dp[i][j - 1] + 1,
+          dp[i - 1][j - 1] + cost
+        );
+      }
+    }
+
+    return dp[m][n];
   }
 
   function showResult(message, type = '') {
@@ -205,6 +260,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const exact = unsolved.find((target) => normalizedGuess === target.normalized_name);
     if (exact) return exact;
 
+    const compactGuess = compactName(normalizedGuess);
+    const compactExact = unsolved.find(
+      (target) => compactGuess === compactName(target.normalized_name)
+    );
+    if (compactExact) return compactExact;
+
+    const fuzzyMatches = unsolved.filter((target) => {
+      const distance = levenshteinDistance(normalizedGuess, target.normalized_name);
+      const maxLen = Math.max(
+        compactGuess.length,
+        compactName(target.normalized_name).length
+      );
+      const threshold = maxLen >= 12 ? 2 : 1;
+      return distance <= threshold;
+    });
+    if (fuzzyMatches.length === 1) {
+      return fuzzyMatches[0];
+    }
+
     const lastNameMatches = unsolved.filter((target) => {
       const parts = target.normalized_name.split(' ');
       if (parts.length < 2) return false;
@@ -249,11 +323,25 @@ document.addEventListener('DOMContentLoaded', () => {
       ? `<div class="success-message">You solved all cast members! Final score: ${score}</div>`
       : `<div class="fail-message">Out of rounds. Final score: ${score}</div>`;
 
-    const summaryRows = gameData.targets.map((target) => {
+    const revealCards = gameData.targets.map((target) => {
       const solved = solvedSlots.has(target.slot);
-      const state = solved ? 'Solved' : 'Missed';
-      const character = target.hints.character || 'Character unavailable';
-      return `<li><strong>${escapeHtml(state)}:</strong> ${escapeHtml(target.name)}${character ? ` - ${escapeHtml(character)}` : ''}</li>`;
+      const cardClass = solved ? 'actor-slot solved' : 'actor-slot missed';
+      const statusText = solved ? 'Solved' : 'Missed';
+      const firstMovie = (target.hints.other_movies && target.hints.other_movies[0]) || 'No known title available';
+      const secondMovie = (target.hints.other_movies && target.hints.other_movies[1]) || 'No second title available';
+
+      return `
+        <div class="${cardClass}">
+          ${target.profile_path ? `<img class="actor-photo" src="${escapeHtml(target.profile_path)}" alt="${escapeHtml(target.name)}">` : ''}
+          <h4>${escapeHtml(target.name)}</h4>
+          <div class="actor-hint"><strong>Status:</strong> ${escapeHtml(statusText)}</div>
+          <div class="actor-hint"><strong>Initials:</strong> ${escapeHtml(target.hints.initials || 'Unknown')}</div>
+          <div class="actor-hint"><strong>Birth:</strong> ${escapeHtml(target.hints.birth || 'Birth date unavailable')}</div>
+          <div class="actor-hint"><strong>Other Movie:</strong> ${escapeHtml(firstMovie)}</div>
+          <div class="actor-hint"><strong>Another Movie:</strong> ${escapeHtml(secondMovie)}</div>
+          <div class="actor-hint"><strong>Character:</strong> ${escapeHtml(target.hints.character || 'Character unavailable')}</div>
+        </div>
+      `;
     }).join('');
 
     revealContent.innerHTML = `
@@ -261,8 +349,8 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="answer-reveal">
         <h3>${escapeHtml(gameData.title)} ${gameData.year ? `(${escapeHtml(gameData.year)})` : ''}</h3>
         <p>Required cast members: ${gameData.required_count}</p>
-        <ul class="summary-list">${summaryRows}</ul>
       </div>
+      <div class="actor-slots">${revealCards}</div>
     `;
   }
 

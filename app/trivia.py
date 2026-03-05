@@ -92,9 +92,29 @@ class TriviaEngine:
         """Normalize person names for tolerant matching."""
         if not value:
             return ""
-        normalized = unicodedata.normalize("NFKD", str(value))
-        ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
-        cleaned = re.sub(r"[^a-zA-Z0-9\s]", " ", ascii_only).lower()
+        text = str(value)
+        char_map = {
+            "ß": "ss",
+            "ẞ": "ss",
+            "ø": "o",
+            "Ø": "o",
+            "ð": "d",
+            "Ð": "d",
+            "þ": "th",
+            "Þ": "th",
+            "ł": "l",
+            "Ł": "l",
+            "æ": "ae",
+            "Æ": "ae",
+            "œ": "oe",
+            "Œ": "oe",
+        }
+        for source, replacement in char_map.items():
+            text = text.replace(source, replacement)
+
+        normalized = unicodedata.normalize("NFKD", text)
+        stripped = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
+        cleaned = re.sub(r"[^a-zA-Z0-9\s]", " ", stripped).lower()
         return re.sub(r"\s+", " ", cleaned).strip()
 
     @staticmethod

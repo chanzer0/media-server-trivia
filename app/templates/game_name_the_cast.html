@@ -214,6 +214,11 @@
   box-shadow: 0 0 0 1px var(--success-color);
 }
 
+.actor-slot.missed {
+  border-color: var(--danger-color);
+  box-shadow: 0 0 0 1px var(--danger-color);
+}
+
 .actor-slot h4 {
   font-size: 1rem;
   margin-bottom: 0.5rem;
@@ -232,21 +237,6 @@
   object-fit: cover;
   border: 2px solid var(--primary-color);
   margin-bottom: 0.5rem;
-}
-
-.summary-list {
-  margin: 1rem 0;
-  padding-left: 0;
-  list-style: none;
-  display: grid;
-  gap: 0.5rem;
-}
-
-.summary-list li {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 0.7rem;
 }
 
 .success-message {
