@@ -77,6 +77,26 @@ class TMDbCache:
         """Cache movie cast."""
         cache_key = self._get_cache_key("movie_cast", movie_id)
         self._cache_data(cache_key, data)
+
+    def get_movie_cast_extended(self, movie_id):
+        """Get cached extended movie cast."""
+        cache_key = self._get_cache_key("movie_cast_extended", movie_id)
+        return self._get_cached_data(cache_key)
+
+    def set_movie_cast_extended(self, movie_id, data):
+        """Cache extended movie cast."""
+        cache_key = self._get_cache_key("movie_cast_extended", movie_id)
+        self._cache_data(cache_key, data)
+
+    def get_person_details(self, person_id):
+        """Get cached person details."""
+        cache_key = self._get_cache_key("person_details", person_id)
+        return self._get_cached_data(cache_key)
+
+    def set_person_details(self, person_id, data):
+        """Cache person details."""
+        cache_key = self._get_cache_key("person_details", person_id)
+        self._cache_data(cache_key, data)
     
     def _get_cached_data(self, cache_key):
         """Retrieve cached data if it exists."""

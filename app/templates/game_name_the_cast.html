@@ -1,0 +1,294 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="game-container name-cast-game">
+  <div class="game-header">
+    <h2 class="game-title-page">Name the Cast</h2>
+    <p class="hero-subtitle">Guess the top billed cast members before you run out of rounds.</p>
+  </div>
+
+  <div id="gameLoading" class="game-loading">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading game...</div>
+  </div>
+
+  <div id="gameArea" style="display: none;">
+    <div class="round-indicator" id="roundIndicator"></div>
+
+    <div class="score-row">
+      <div class="score-pill">Round: <span id="roundLabel">1</span></div>
+      <div class="score-pill">Solved: <span id="solvedLabel">0 / 0</span></div>
+      <div class="score-pill">Score: <span id="scoreLabel">0</span></div>
+    </div>
+
+    <div id="movieCard" class="movie-card-large"></div>
+
+    <div id="actorSlots" class="actor-slots"></div>
+
+    <div class="input-group">
+      <div class="input-container">
+        <input
+          id="guessInput"
+          class="form-control"
+          placeholder="Enter actor/actress name..."
+          autocomplete="off"
+        >
+        <div id="customDropdown" class="custom-dropdown"></div>
+      </div>
+      <button class="btn btn-primary" id="guessBtn">
+        Submit Guess
+        <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
+        </svg>
+      </button>
+      <button class="btn btn-secondary" id="skipBtn">
+        Skip Round
+        <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div id="result"></div>
+  </div>
+
+  <div id="revealArea" style="display: none;">
+    <div id="revealContent"></div>
+    <div class="game-controls mt-4">
+      <button class="btn btn-primary" id="newGameBtn">
+        <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+        </svg>
+        New Game
+      </button>
+      <button class="btn btn-secondary" id="homeBtn">
+        <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+        </svg>
+        Home
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+.name-cast-game {
+  max-width: 960px;
+}
+
+.game-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  min-height: 300px;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(99, 102, 241, 0.2);
+  border-radius: 50%;
+  border-top-color: var(--primary-color);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.round-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.round-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  transition: all 0.3s ease;
+}
+
+.round-dot.active {
+  background: var(--primary-color);
+  box-shadow: 0 0 10px var(--primary-color);
+  transform: scale(1.15);
+}
+
+.round-dot.used {
+  background: var(--danger-color);
+  opacity: 0.7;
+}
+
+.score-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.score-pill {
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.movie-card-large {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.25rem;
+  box-shadow: var(--shadow-md);
+}
+
+.movie-poster-large {
+  width: 100%;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--bg-tertiary);
+  min-height: 260px;
+}
+
+.movie-poster-placeholder {
+  width: 100%;
+  min-height: 260px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  font-size: 0.9rem;
+}
+
+.movie-meta h3 {
+  margin-bottom: 0.4rem;
+}
+
+.movie-facts {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.movie-summary {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.actor-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.actor-slot {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 0.9rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.actor-slot.solved {
+  border-color: var(--success-color);
+  box-shadow: 0 0 0 1px var(--success-color);
+}
+
+.actor-slot h4 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.actor-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
+}
+
+.actor-photo {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--primary-color);
+  margin-bottom: 0.5rem;
+}
+
+.summary-list {
+  margin: 1rem 0;
+  padding-left: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.summary-list li {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.7rem;
+}
+
+.success-message {
+  background: var(--success-color);
+  color: white;
+  padding: 1.2rem;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.fail-message {
+  background: var(--danger-color);
+  color: white;
+  padding: 1.2rem;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.answer-reveal {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+@media (max-width: 768px) {
+  .movie-card-large {
+    grid-template-columns: 1fr;
+  }
+
+  .movie-poster-large {
+    max-width: 250px;
+    justify-self: center;
+  }
+}
+</style>
+
+<script src="{{ url_for('static', filename='name-the-cast.js') }}"></script>
+{% endblock %}

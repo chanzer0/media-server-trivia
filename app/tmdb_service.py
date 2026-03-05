@@ -53,6 +53,15 @@ class TMDbService:
         base_url = config["images"]["base_url"]
         return f"{base_url}{size}{file_path}"
 
+    @staticmethod
+    def _field(obj, key, default=None):
+        """Read a field from either dict-like or attribute-like objects."""
+        if obj is None:
+            return default
+        if isinstance(obj, dict):
+            return obj.get(key, default)
+        return getattr(obj, key, default)
+
     def get_poster_url(self, poster_path: str, size: str = "w500") -> str:
         """Get a properly formatted poster URL.
 
@@ -105,19 +114,21 @@ class TMDbService:
         try:
             credits = self.client.movie(movie_id).credits()
             cast_with_photos = []
+            credits_cast = self._field(credits, "cast", []) or []
 
-            for actor in credits.cast[:12]:  # Limit to top 12 cast members
+            for actor in credits_cast[:12]:  # Limit to top 12 cast members
+                profile_path = self._field(actor, "profile_path")
                 actor_data = {
-                    "name": actor.name,
-                    "character": actor.character,
+                    "name": self._field(actor, "name"),
+                    "character": self._field(actor, "character"),
                     "profile_path": None,
                 }
 
                 # Build proper image URL using TMDb configuration
-                if actor.profile_path:
+                if profile_path:
                     # Use w185 for profile images (good balance of quality and performance)
                     actor_data["profile_path"] = self.get_profile_url(
-                        actor.profile_path, "w185"
+                        profile_path, "w185"
                     )
 
                 cast_with_photos.append(actor_data)
@@ -127,6 +138,88 @@ class TMDbService:
             return cast_with_photos
         except Exception as e:
             logger.error(f"Failed to fetch movie cast: {e}")
+            return None
+
+    def get_movie_cast_extended(self, movie_id: int):
+        """Return top-billed cast with ranking and profile metadata."""
+        if not self.client:
+            return None
+
+        cached_data = self.cache.get_movie_cast_extended(movie_id)
+        if cached_data is not None:
+            return cached_data
+
+        try:
+            credits = self.client.movie(movie_id).credits()
+            cast_data = []
+            credits_cast = self._field(credits, "cast", []) or []
+
+            for index, actor in enumerate(credits_cast[:12]):
+                profile_path = self._field(actor, "profile_path")
+                actor_data = {
+                    "id": self._field(actor, "id"),
+                    "name": self._field(actor, "name"),
+                    "character": self._field(actor, "character"),
+                    "order": self._field(actor, "order", index),
+                    "popularity": self._field(actor, "popularity"),
+                    "profile_path": self.get_profile_url(profile_path, "w185") if profile_path else None,
+                }
+                cast_data.append(actor_data)
+
+            self.cache.set_movie_cast_extended(movie_id, cast_data)
+            return cast_data
+        except Exception as e:
+            logger.error(f"Failed to fetch extended movie cast: {e}")
+            return None
+
+    def get_person_details(self, person_id: int):
+        """Return person details used for cast hint generation."""
+        if not self.client:
+            return None
+
+        cached_data = self.cache.get_person_details(person_id)
+        if cached_data is not None:
+            return cached_data
+
+        try:
+            person_api = self.client.person(person_id)
+            person_obj = None
+
+            try:
+                person_obj = person_api.details(append_to_response="movie_credits")
+            except TypeError:
+                person_obj = person_api.details()
+            except Exception:
+                person_obj = person_api.details()
+
+            movie_credits_obj = self._field(person_obj, "movie_credits")
+            if not movie_credits_obj:
+                movie_credits_method = getattr(person_api, "movie_credits", None)
+                if callable(movie_credits_method):
+                    try:
+                        movie_credits_obj = movie_credits_method()
+                    except Exception:
+                        movie_credits_obj = None
+
+            known_for_titles = []
+            cast_credits = self._field(movie_credits_obj, "cast", []) or []
+            for movie in cast_credits:
+                title = self._field(movie, "title")
+                if title and title not in known_for_titles:
+                    known_for_titles.append(title)
+                if len(known_for_titles) >= 8:
+                    break
+
+            payload = {
+                "id": person_id,
+                "name": self._field(person_obj, "name"),
+                "birthday": self._field(person_obj, "birthday"),
+                "known_for_titles": known_for_titles,
+            }
+            self.cache.set_person_details(person_id, payload)
+            return payload
+        except Exception as e:
+            logger.error(f"Failed to fetch person details for {person_id}: {e}")
             return None
 
     def search_movies(self, query: str):

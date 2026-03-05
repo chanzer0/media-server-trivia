@@ -3,6 +3,8 @@ import cv2
 import os
 import json
 import hashlib
+import re
+import unicodedata
 from pathlib import Path
 
 # Suppress OpenCV/FFmpeg H.264 error messages
@@ -59,19 +61,48 @@ class TriviaEngine:
         if not self.tmdb:
             return None
 
-        tmdb_id = None
-        for guid in getattr(movie, "guids", []):
-            try:
-                gid = getattr(guid, "id", "")
-                if isinstance(gid, str) and gid.startswith("tmdb://"):
-                    tmdb_id = int(gid.split("tmdb://", 1)[1])
-                    break
-            except Exception:
-                continue
+        tmdb_id = self._extract_tmdb_id(movie)
 
         if tmdb_id:
             return self.tmdb.get_movie_details(tmdb_id)
         return None
+
+    def _extract_tmdb_id(self, movie):
+        """Extract TMDb id from a Plex movie object if available."""
+        for guid in getattr(movie, "guids", []):
+            try:
+                gid = getattr(guid, "id", "")
+                if isinstance(gid, str) and gid.startswith("tmdb://"):
+                    return int(gid.split("tmdb://", 1)[1])
+            except Exception:
+                continue
+        return None
+
+    @staticmethod
+    def _field(obj, key, default=None):
+        """Read a field from either dict-like or attribute-like objects."""
+        if obj is None:
+            return default
+        if isinstance(obj, dict):
+            return obj.get(key, default)
+        return getattr(obj, key, default)
+
+    @staticmethod
+    def _normalize_name(value):
+        """Normalize person names for tolerant matching."""
+        if not value:
+            return ""
+        normalized = unicodedata.normalize("NFKD", str(value))
+        ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
+        cleaned = re.sub(r"[^a-zA-Z0-9\s]", " ", ascii_only).lower()
+        return re.sub(r"\s+", " ", cleaned).strip()
+
+    @staticmethod
+    def _build_initials(name):
+        """Build initials from a full name."""
+        parts = [p for p in re.split(r"\s+", str(name).strip()) if p]
+        initials = [part[0].upper() for part in parts if part and part[0].isalnum()]
+        return " ".join(f"{initial}." for initial in initials) if initials else "Unknown"
 
     def _random_movie(self):
         """Return a random movie from the Plex library."""
@@ -142,17 +173,13 @@ class TriviaEngine:
 
     def guess_year(self):
         """Return the title and year for a random movie."""
-        print("guess_year() called")
-        movie = self._random_movie()
-        if not movie:
-            print("No movie returned from _random_movie()")
+        movies = [m for m in self.plex.get_movies() if getattr(m, "year", None)]
+        if not movies:
+            logger.warning("[Year] No movies with release years found in library")
             return None
 
-        print(f"Selected movie: {movie.title}")
-        print(f"Movie year: {getattr(movie, 'year', 'No year attribute')}")
-        print(
-            f"Movie summary length: {len(getattr(movie, 'summary', '')) if hasattr(movie, 'summary') else 'No summary'}"
-        )
+        movie = random.choice(movies)
+        logger.info(f"[Year] Selected movie: {movie.title} ({movie.year})")
 
         # Get TMDb ID first to get cast with photos
         tmdb_id = None
@@ -180,22 +207,14 @@ class TriviaEngine:
             except Exception:
                 cast_with_photos = []
 
-        try:
-            tmdb = self._get_tmdb_details(movie)
-            print(f"TMDb details retrieved: {bool(tmdb)}")
-        except Exception as e:
-            print(f"Error getting TMDb details: {e}")
-            tmdb = None
-
         result = {
             "title": movie.title,
-            "year": movie.year,
+            "year": int(movie.year),
             "summary": getattr(movie, "summary", "No summary available"),
             "cast": cast_with_photos[:4],  # Limit to top 4 for year game
         }
 
-        print(f"Cast data: {len(cast_with_photos)} actors")
-        print(f"Returning result: {result}")
+        logger.info(f"[Year] Returning game payload with {len(result['cast'])} cast members")
         return result
 
     def poster_reveal(self):
@@ -951,6 +970,264 @@ class TriviaEngine:
         # If we get here, all 10 attempts failed
         logger.error("[Quote] Failed to find a movie with valid dialogue blocks after 10 attempts")
         return {"error": "Could not find a movie with suitable dialogue blocks. Please try again."}
+
+    def _name_the_cast_profile_score(self, billing_order, popularity, library_count):
+        """Score cast members using billing, popularity, and library familiarity."""
+        try:
+            order = int(billing_order)
+        except Exception:
+            order = 20
+        order = max(0, min(order, 20))
+        order_score = max(0, 100 - (order * 7))
+
+        try:
+            pop_score = float(popularity) if popularity is not None else 0.0
+        except Exception:
+            pop_score = 0.0
+        pop_score = max(0.0, min(pop_score, 100.0))
+
+        lib_score = min(max(int(library_count), 0) * 12, 80)
+        return round((order_score * 0.55) + (pop_score * 0.25) + (lib_score * 0.20), 2)
+
+    def _name_the_cast_dynamic_count(self, candidates):
+        """Pick how many actors to guess (3-6) based on cast quality and depth."""
+        from .constants import NAME_THE_CAST_MIN_ACTORS, NAME_THE_CAST_MAX_ACTORS
+
+        candidate_count = len(candidates)
+        if candidate_count <= 4:
+            target_count = 3
+        elif candidate_count <= 6:
+            target_count = 4
+        elif candidate_count <= 8:
+            target_count = 5
+        else:
+            target_count = 6
+
+        high_profile = sum(1 for c in candidates if c.get("profile_score", 0) >= 70)
+        if high_profile >= 6:
+            target_count += 1
+        elif high_profile <= 2:
+            target_count -= 1
+
+        return max(
+            NAME_THE_CAST_MIN_ACTORS,
+            min(NAME_THE_CAST_MAX_ACTORS, candidate_count, target_count),
+        )
+
+    def _name_the_cast_birth_hint(self, birthday):
+        """Return human-readable birthday hint."""
+        if not birthday:
+            return "Birth date unavailable"
+
+        birthday_str = str(birthday).strip()
+        full_match = re.match(r"^(\d{4})-(\d{2})-(\d{2})$", birthday_str)
+        if full_match:
+            return f"Born {birthday_str}"
+
+        year_match = re.match(r"^(\d{4})", birthday_str)
+        if year_match:
+            return f"Born in {year_match.group(1)}"
+
+        return "Birth date unavailable"
+
+    def _name_the_cast_other_titles(self, movie_title, library_movies, known_for_titles):
+        """Build up to two unique filmography hints excluding the current movie."""
+        other_titles = []
+        seen = {self._normalize_name(movie_title)}
+
+        for movie in library_movies or []:
+            title = getattr(movie, "title", None)
+            norm_title = self._normalize_name(title)
+            if title and norm_title and norm_title not in seen:
+                seen.add(norm_title)
+                other_titles.append(title)
+                if len(other_titles) >= 2:
+                    return other_titles
+
+        for title in known_for_titles or []:
+            norm_title = self._normalize_name(title)
+            if title and norm_title and norm_title not in seen:
+                seen.add(norm_title)
+                other_titles.append(title)
+                if len(other_titles) >= 2:
+                    return other_titles
+
+        return other_titles
+
+    def _name_the_cast_movie_director(self, tmdb_data):
+        """Extract director from TMDb credits."""
+        credits = self._field(tmdb_data, "credits")
+        crew = self._field(credits, "crew", []) or []
+        for person in crew:
+            if self._field(person, "job") == "Director":
+                return self._field(person, "name")
+        return None
+
+    def _name_the_cast_movie_genres(self, tmdb_data):
+        """Extract genre names from TMDb details."""
+        genres = []
+        for genre in self._field(tmdb_data, "genres", []) or []:
+            name = self._field(genre, "name")
+            if name:
+                genres.append(name)
+        return genres
+
+    def _name_the_cast_movie_poster(self, movie, tmdb_data):
+        """Resolve poster URL with TMDb-first fallback to Plex."""
+        poster_path = self._field(tmdb_data, "poster_path")
+        if poster_path and self.tmdb:
+            return self.tmdb.get_poster_url(poster_path, "w500")
+
+        if hasattr(movie, "thumbUrl"):
+            return movie.thumbUrl
+
+        if self.plex.server:
+            try:
+                return self.plex.server.url(movie.thumb)
+            except Exception:
+                return None
+
+        return None
+
+    def name_the_cast(self):
+        """Generate Name the Cast game payload."""
+        from .constants import (
+            NAME_THE_CAST_CAST_POOL,
+            NAME_THE_CAST_MAX_ATTEMPTS,
+            NAME_THE_CAST_MIN_ACTORS,
+            NAME_THE_CAST_ROUNDS,
+            NAME_THE_CAST_SCORE_BY_ROUND,
+        )
+
+        movies = self.plex.get_movies()
+        if not movies:
+            return {"error": "No movies found in library"}
+
+        actor_index = self._get_actor_index() or {}
+        actor_lookup = {
+            self._normalize_name(actor_name): movie_list
+            for actor_name, movie_list in actor_index.items()
+        }
+
+        score_by_round = list(NAME_THE_CAST_SCORE_BY_ROUND[:NAME_THE_CAST_ROUNDS])
+        if not score_by_round:
+            score_by_round = [100] * NAME_THE_CAST_ROUNDS
+        if len(score_by_round) < NAME_THE_CAST_ROUNDS:
+            score_by_round.extend(
+                [score_by_round[-1]] * (NAME_THE_CAST_ROUNDS - len(score_by_round))
+            )
+
+        for attempt in range(NAME_THE_CAST_MAX_ATTEMPTS):
+            movie = random.choice(movies)
+            tmdb_id = self._extract_tmdb_id(movie)
+            tmdb_data = self._get_tmdb_details(movie) if tmdb_id else None
+
+            cast_pool = []
+            if tmdb_id and self.tmdb:
+                cast_pool = self.tmdb.get_movie_cast_extended(tmdb_id) or []
+
+            if not cast_pool:
+                plex_actors = getattr(movie, "actors", []) or []
+                cast_pool = [
+                    {
+                        "id": None,
+                        "name": getattr(actor, "tag", None),
+                        "character": None,
+                        "order": idx,
+                        "popularity": None,
+                        "profile_path": None,
+                    }
+                    for idx, actor in enumerate(plex_actors[:NAME_THE_CAST_CAST_POOL])
+                ]
+
+            candidates = []
+            seen_names = set()
+            for idx, actor in enumerate(cast_pool[:NAME_THE_CAST_CAST_POOL]):
+                name = self._field(actor, "name")
+                normalized_name = self._normalize_name(name)
+                if not normalized_name or normalized_name in seen_names:
+                    continue
+                seen_names.add(normalized_name)
+
+                library_movies = actor_lookup.get(normalized_name, [])
+                profile_score = self._name_the_cast_profile_score(
+                    self._field(actor, "order", idx),
+                    self._field(actor, "popularity"),
+                    len(library_movies),
+                )
+
+                candidates.append(
+                    {
+                        "id": self._field(actor, "id"),
+                        "name": name,
+                        "normalized_name": normalized_name,
+                        "character": self._field(actor, "character"),
+                        "order": self._field(actor, "order", idx),
+                        "popularity": self._field(actor, "popularity"),
+                        "profile_path": self._field(actor, "profile_path"),
+                        "library_movies": library_movies,
+                        "profile_score": profile_score,
+                    }
+                )
+
+            if len(candidates) < NAME_THE_CAST_MIN_ACTORS:
+                logger.info(
+                    f"[NameTheCast] Attempt {attempt + 1}: not enough cast candidates for {movie.title}"
+                )
+                continue
+
+            candidates.sort(key=lambda c: (-c["profile_score"], c["order"]))
+            required_count = self._name_the_cast_dynamic_count(candidates)
+            selected_cast = candidates[:required_count]
+
+            targets = []
+            for slot_number, actor in enumerate(selected_cast, start=1):
+                person_details = None
+                actor_id = actor.get("id")
+                if actor_id and self.tmdb:
+                    person_details = self.tmdb.get_person_details(actor_id)
+
+                birthday = self._field(person_details, "birthday")
+                known_for_titles = self._field(person_details, "known_for_titles", []) or []
+                other_titles = self._name_the_cast_other_titles(
+                    movie.title,
+                    actor.get("library_movies", []),
+                    known_for_titles,
+                )
+
+                targets.append(
+                    {
+                        "slot": slot_number,
+                        "name": actor["name"],
+                        "normalized_name": actor["normalized_name"],
+                        "profile_path": actor.get("profile_path"),
+                        "hints": {
+                            "initials": self._build_initials(actor["name"]),
+                            "birth": self._name_the_cast_birth_hint(birthday),
+                            "other_movies": other_titles,
+                            "character": actor.get("character") or "Character unavailable",
+                        },
+                    }
+                )
+
+            if len(targets) < NAME_THE_CAST_MIN_ACTORS:
+                continue
+
+            return {
+                "title": movie.title,
+                "year": getattr(movie, "year", None),
+                "summary": getattr(movie, "summary", "No summary available"),
+                "poster": self._name_the_cast_movie_poster(movie, tmdb_data),
+                "director": self._name_the_cast_movie_director(tmdb_data),
+                "genres": self._name_the_cast_movie_genres(tmdb_data),
+                "required_count": len(targets),
+                "targets": targets,
+                "total_rounds": NAME_THE_CAST_ROUNDS,
+                "score_by_round": score_by_round,
+            }
+
+        logger.error("[NameTheCast] Failed to generate a valid game after retries")
+        return {"error": "Could not generate Name the Cast game. Please try again."}
 
     def timeline_challenge(self):
         """Timeline Challenge - combined cast + year guessing game."""

@@ -23,7 +23,7 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
 
     @bp.route("/game/year")
     def year_game_page():
-        return render_template("game_timeline.html")
+        return render_template("game_year.html")
 
     @bp.route("/game/timeline")
     def timeline_game_page():
@@ -40,6 +40,10 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
     @bp.route("/game/cast-match")
     def cast_match_game_page():
         return render_template("game_cast_match.html")
+
+    @bp.route("/game/name-the-cast")
+    def name_the_cast_game_page():
+        return render_template("game_name_the_cast.html")
 
     @bp.route("/game/quote")
     def quote_game_page():
@@ -60,8 +64,8 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
     @bp.route("/api/trivia/year")
     @with_error_handling
     def api_trivia_year():
-        q = trivia.timeline_challenge()
-        return handle_trivia_response(q)
+        q = trivia.guess_year()
+        return handle_trivia_response(q, "Could not generate year game")
 
     @bp.route("/api/trivia/timeline")
     @with_error_handling
@@ -93,6 +97,12 @@ def init_routes(app: Flask, plex_service: PlexService, tmdb_service: TMDbService
     def api_trivia_cast_match():
         result = trivia.cast_match()
         return handle_trivia_response(result, "Could not generate Cast Match game")
+
+    @bp.route("/api/trivia/name-the-cast")
+    @with_error_handling
+    def api_trivia_name_the_cast():
+        result = trivia.name_the_cast()
+        return handle_trivia_response(result, "Could not generate Name the Cast game")
 
     @bp.route("/api/trivia/quote")
     @with_error_handling
